@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+
+# Pixi (ambiente local — NÃO versionar)
+.pixi/
+# pixi.lock É versionado (reprodutibilidade)
+
+# Variáveis de ambiente (contêm senhas)
+.env
+
+# Dados de cliente (NUNCA no Git)
+dados/*.xlsx
+dados/*.csv
+dados/*.db
+dados/*.db-shm
+dados/*.db-wal
+!dados/.gitkeep
+
+# Uploads temporários
+dados_exemplo/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Docker (se não quiser versionar)
+# docker-compose.yml
+# Dockerfile

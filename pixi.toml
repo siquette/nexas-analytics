@@ -1,0 +1,64 @@
+# ============================================
+# NEXAS Analytics — Pixi Configuration
+#
+# Setup:   pixi install
+# Rodar:   pixi run serve
+# Ingerir: pixi run ingest "dados/arquivo.xlsx" --onda 2025-Q1
+# Testes:  pixi run -e dev test
+# ============================================
+
+[workspace]
+name = "nexas-analytics"
+version = "0.1.0"
+description = "Dashboard analítico de visualização de associações (Lift Condicional)"
+channels = ["conda-forge"]
+platforms = ["win-64", "linux-64", "osx-arm64"]
+
+# ============================================
+# Dependências conda-forge
+# ============================================
+[dependencies]
+python     = ">=3.11,<3.13"
+pandas     = ">=2.2"
+openpyxl   = ">=3.1"
+sqlalchemy = ">=2.0"
+psycopg2   = ">=2.9"
+uvicorn    = ">=0.34"
+
+# ============================================
+# Dependências PyPI
+# ============================================
+[pypi-dependencies]
+fastapi           = ">=0.115"
+pydantic          = ">=2.10"
+pydantic-settings = ">=2.7"
+python-dotenv     = ">=1.0"
+python-multipart  = ">=0.0.20"
+
+# ============================================
+# Dependências de desenvolvimento
+# ============================================
+[feature.dev.dependencies]
+pytest = ">=8.3"
+
+[feature.dev.pypi-dependencies]
+httpx = ">=0.28"
+
+# ============================================
+# Environments
+# ============================================
+[environments]
+default = { features = [],      solve-group = "default" }
+dev     = { features = ["dev"], solve-group = "default" }
+
+# ============================================
+# Tasks
+# ============================================
+[tasks]
+serve      = "python -m uvicorn backend.main:app --reload --port 8000"
+serve-prod = "python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000"
+ingest     = "python -m scripts.ingest_cli"
+create-db  = "python -m scripts.create_db"
+
+[feature.dev.tasks]
+test = "pytest backend/tests/ -v"
