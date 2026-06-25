@@ -15,21 +15,34 @@ from backend.services.aggregator import get_metricas_resumo
 
 router = APIRouter(prefix="/api", tags=["visualizações"])
 
-@router.get("/tree", response_model=TreeResponse)
 
+@router.get("/tree", response_model=TreeResponse)
 def get_tree(
     onda: str = Query(..., description="Código da onda"),
     assunto: str = Query(..., description="ASSUNTO_COLUNA"),
     pergunta: str = Query(..., description="PERGUNTA_COLUNA"),
+    categoria_coluna: str | None = Query(None, description="CATEGORIA_COLUNA (opcional) — quando informada, root da árvore passa a ser essa categoria"),
     direcao: str | None = Query(None, description="DRIVER, ANTI-DRIVER ou vazio para todos"),
-    agregacao: str = Query("weighted_mean", description="Método: weighted_mean, mean, median, max"),  # ← NOVO
+    agregacao: str = Query("weighted_mean", description="Método: weighted_mean, mean, median, max"),
     db: Session = Depends(get_db),
 ):
     """
     Retorna a árvore hierárquica completa para um cruzamento.
+
+    Quando categoria_coluna é informada, a árvore começa no nível 2
+    (ASSUNTO_LINHA), usando a categoria como root — evita um nível
+    desnecessário e limpa a visualização.
     """
     try:
-        return build_tree(db, onda, assunto, pergunta, direcao, agregacao)  # ← Passar agregacao
+        return build_tree(
+            db,
+            onda,
+            assunto,
+            pergunta,
+            direcao,
+            agregacao,
+            categoria_coluna,
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 

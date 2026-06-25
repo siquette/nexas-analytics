@@ -699,6 +699,9 @@
             <div class="filtros">
                 <select id="assunto-select" disabled><option value="">Assunto</option></select>
                 <select id="pergunta-select" disabled><option value="">Pergunta / Indicador</option></select>
+                <select id="categoria-coluna-select" disabled>
+                    <option value="">Todas as categorias</option>
+                </select>
                 <select id="direcao-select">
                     <option value="">Todas as direções</option>
                     <option value="DRIVER">Só Drivers</option>
@@ -861,6 +864,7 @@ const state = {
     onda: null,
     assunto: null,
     pergunta: null,
+    categoria_coluna: null,
     direcao: null,
     treeData: null,
     nodeYSpacing: 26,
@@ -1056,10 +1060,8 @@ function showTip(ev, d) {
         h += `<div class="t-hint">Clique para expandir / colapsar</div>`;
     }
     
-    // NOVO: Botão "Abrir em nova aba"
-    const currentUrl = new URL(window.location.href);
-    h += `<button onclick="window.open('${currentUrl.href}', '_blank')" style="width:100%;margin-top:0.5rem;padding:0.5rem;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border-color);border-radius:4px;cursor:pointer;font-size:0.85rem;font-weight:500;transition:all 0.2s ease">🔗 Abrir em nova aba</button>`;
     
+
     tipEl.innerHTML = h;
     tipEl.style.opacity = '1';
     tipEl.style.left = `${ev.clientX + 16}px`;
@@ -1253,6 +1255,7 @@ async function loadData() {
         params.set('onda', state.onda);
         params.set('assunto', state.assunto);
         params.set('pergunta', state.pergunta);
+        if (state.categoria_coluna) params.set('categoria_coluna', state.categoria_coluna);
         if (state.direcao) params.set('direcao', state.direcao);
         
         const resp = await fetch(`/api/tree?${params.toString()}`);
@@ -1336,6 +1339,31 @@ async function loadAssuntos() {
     }
 }
 
+
+async function loadCategoriasColuna() {
+    if (!state.onda || !state.assunto || !state.pergunta) return;
+
+    try {
+        const resp = await fetch(
+            `/api/filtros/categorias?onda=${encodeURIComponent(state.onda)}&assunto=${encodeURIComponent(state.assunto)}&pergunta=${encodeURIComponent(state.pergunta)}`
+        );
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+
+        const sel = document.getElementById('categoria-coluna-select');
+        sel.innerHTML = '<option value="">Todas as categorias</option>';
+        (data.categorias || data).forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.textContent = cat;
+            sel.appendChild(opt);
+        });
+        sel.disabled = false;
+    } catch (err) {
+        console.error('Erro ao carregar categorias:', err);
+    }
+}
+
 async function loadPerguntas() {
     if (!state.onda || !state.assunto) return;
     
@@ -1368,6 +1396,7 @@ async function loadPerguntas() {
         if (state.pergunta) {
             sel.value = state.pergunta;
             overlayPergunta.value = state.pergunta;
+            loadCategoriasColuna();
             loadData();
         }
     } catch (err) {
@@ -1718,8 +1747,20 @@ function init() {
     
     document.getElementById('pergunta-select').addEventListener('change', (e) => {
         state.pergunta = e.target.value;
+        state.categoria_coluna = null;
+        const sel = document.getElementById('categoria-coluna-select');
+        sel.innerHTML = '<option value="">Todas as categorias</option>';
+        sel.disabled = true;
+        if (state.pergunta) {
+            loadCategoriasColuna();
+            loadData();
+    }
+});
+
+    document.getElementById('categoria-coluna-select').addEventListener('change', (e) => {
+        state.categoria_coluna = e.target.value || null;
         if (state.pergunta) loadData();
-    });
+});
     
     document.getElementById('direcao-select').addEventListener('change', (e) => {
         state.direcao = e.target.value || null;
