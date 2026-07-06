@@ -632,6 +632,10 @@
             padding: 0.3rem 0.6rem;
             font-size: 0.75rem;
         }
+
+        /* ═══════════════════════════════════════════════════════════
+           LEGENDA EXPANDIDA (arrastável)
+           ═══════════════════════════════════════════════════════════ */
         
         .legend-expanded {
             position: fixed;
@@ -644,8 +648,13 @@
             padding: 1rem;
             min-width: 250px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
             z-index: 1000;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .legend-expanded:active {
+            cursor: grabbing;
         }
         
         .legend-expanded h4 {
@@ -653,6 +662,50 @@
             font-size: 0.9rem;
             color: var(--text-primary);
             transition: color 0.3s ease;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           LEGENDA CONTEXTUAL (arrastável)
+           ═══════════════════════════════════════════════════════════ */
+
+        .legend-contextual {
+            position: fixed;
+            bottom: 13rem;
+            right: 1rem;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            min-width: 250px;
+            max-width: 340px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .legend-contextual:active {
+            cursor: grabbing;
+        }
+
+        .legend-contextual-header {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .ctx-row {
+            font-size: 12px;
+            color: var(--text-primary);
+            padding: 3px 0;
+            line-height: 1.4;
+            word-break: break-word;
         }
         
         @media (max-width: 768px) {
@@ -826,6 +879,15 @@
     <div class="loading-text" id="loading-text">Carregando...</div>
 </div>
 
+<!-- Legenda Contextual (acima do Sistema de Cores) -->
+<div class="legend-contextual" id="legend-contextual">
+    <div class="legend-contextual-header">📊 Contexto da Análise</div>
+    <div id="ctx-assunto" class="ctx-row"></div>
+    <div id="ctx-categoria" class="ctx-row" style="display:none"></div>
+    <div id="ctx-pergunta" class="ctx-row"></div>
+</div>
+
+<!-- Legenda Sistema de Cores -->
 <div class="legend-expanded" id="legend-expanded">
     <h4>📊 Sistema de Cores</h4>
     <div style="margin: 10px 0;">
@@ -916,20 +978,16 @@ function interpolateColor(score) {
     for (let i = 0; i < COLOR_STOPS.length - 1; i++) {
         const stop1 = COLOR_STOPS[i];
         const stop2 = COLOR_STOPS[i + 1];
-        
         if (score >= stop1.score && score <= stop2.score) {
             const t = (score - stop1.score) / (stop2.score - stop1.score);
             const rgb1 = hexToRgb(stop1.color);
             const rgb2 = hexToRgb(stop2.color);
-            
             const r = rgb1.r + t * (rgb2.r - rgb1.r);
             const g = rgb1.g + t * (rgb2.g - rgb1.g);
             const b = rgb1.b + t * (rgb2.b - rgb1.b);
-            
             return rgbToHex(r, g, b);
         }
     }
-    
     if (score < COLOR_STOPS[0].score) return COLOR_STOPS[0].color;
     return COLOR_STOPS[COLOR_STOPS.length - 1].color;
 }
@@ -940,14 +998,12 @@ function getColorByScoreGradient(score) {
 
 function nodeColor(d) {
     if (!d || !d.data || !d.data.metrics) return '#6B7F8C';
-    
     if (d.data.leaf) {
         const dir = d.data.metrics.direcao;
         if (dir === 'DRIVER') return '#E8873D';
         if (dir === 'ANTI-DRIVER') return '#2E4A60';
         return '#6B7F8C';
     }
-    
     const score = getNodeScore(d);
     return getColorByScoreGradient(score);
 }
@@ -955,6 +1011,65 @@ function nodeColor(d) {
 function linkColor(d) {
     const score = getNodeScore(d);
     return getColorByScoreGradient(score);
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRAG - LEGENDAS ARRASTÁVEIS
+// ═══════════════════════════════════════════════════════════
+
+function makeDraggable(el, storageKey) {
+    // Restaurar posição salva com validação de viewport
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+        try {
+            const pos = JSON.parse(saved);
+            const left = parseFloat(pos.left);
+            const top = parseFloat(pos.top);
+            const maxLeft = window.innerWidth - el.offsetWidth - 10;
+            const maxTop = window.innerHeight - el.offsetHeight - 10;
+            el.style.left = Math.max(10, Math.min(left, maxLeft)) + 'px';
+            el.style.top = Math.max(10, Math.min(top, maxTop)) + 'px';
+            el.style.bottom = 'auto';
+            el.style.right = 'auto';
+        } catch(e) {
+            localStorage.removeItem(storageKey);
+        }
+    }
+
+    let isDragging = false, startX, startY, startLeft, startTop;
+
+    el.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        const rect = el.getBoundingClientRect();
+        startX = e.clientX;
+        startY = e.clientY;
+        startLeft = rect.left;
+        startTop = rect.top;
+        el.style.left = startLeft + 'px';
+        el.style.top = startTop + 'px';
+        el.style.bottom = 'auto';
+        el.style.right = 'auto';
+        el.style.cursor = 'grabbing';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        el.style.left = (startLeft + dx) + 'px';
+        el.style.top = (startTop + dy) + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (!isDragging) return;
+        isDragging = false;
+        el.style.cursor = 'grab';
+        localStorage.setItem(storageKey, JSON.stringify({
+            left: el.style.left,
+            top: el.style.top
+        }));
+    });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -969,16 +1084,14 @@ function toggleSection(sectionName) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// MODO COMPACTO - STICKY + MINI-HEADER
+// MODO COMPACTO
 // ═══════════════════════════════════════════════════════════
 
 function toggleCompactMode() {
     state.isCompactMode = !state.isCompactMode;
     document.body.classList.toggle('minimized', state.isCompactMode);
-    
     const icon = document.getElementById('compact-icon');
     const text = document.getElementById('compact-text');
-    
     if (state.isCompactMode) {
         icon.textContent = '▼';
         text.textContent = 'Expandir';
@@ -992,7 +1105,6 @@ function toggleCompactMode() {
 function openFiltersOverlay() {
     const overlay = document.getElementById('filters-overlay');
     overlay.classList.add('active');
-    
     syncOverlayValues();
 }
 
@@ -1004,14 +1116,13 @@ function closeFiltersOverlay() {
 function syncOverlayValues() {
     const contexto = document.getElementById('contexto').textContent;
     document.getElementById('overlay-contexto').textContent = contexto;
-    
     document.getElementById('overlay-total').textContent = document.getElementById('met-total').textContent;
     document.getElementById('overlay-drivers').textContent = document.getElementById('met-drivers').textContent;
     document.getElementById('overlay-anti').textContent = document.getElementById('met-anti').textContent;
 }
 
 // ═══════════════════════════════════════════════════════════
-// TOOLTIP COM COMPOSIÇÃO (SEM DESVIO PADRÃO)
+// TOOLTIP
 // ═══════════════════════════════════════════════════════════
 
 function showTip(ev, d) {
@@ -1033,39 +1144,30 @@ function showTip(ev, d) {
         if (m.base_comum) h += `<div class="t-row">Base comum: <em>${m.base_comum}</em></div>`;
     } else {
         h += `<div class="t-row">Score Médio (${getAgregacaoLabel()}): <em style="color:${scoreColor};font-weight:bold">${score.toFixed(2)}</em></div>`;
-        
         if (m.min_score !== undefined && m.max_score !== undefined) {
             h += `<div class="t-row">Range: <em>${m.min_score.toFixed(0)} a ${m.max_score.toFixed(0)}</em></div>`;
         }
-        
         if (m.median_score !== undefined && Math.abs(m.median_score - m.avg_score) > 0.1) {
             h += `<div class="t-row">Mediana: <em>${m.median_score.toFixed(2)}</em></div>`;
         }
-        
-        // NOVO: Composição Driver/Anti-driver (substitui desvio padrão)
         if (m.composition) {
             h += `<div class="t-row" style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border-color)"><strong>Composição:</strong></div>`;
-            
             if (m.composition.drivers) {
                 const d = m.composition.drivers;
                 h += `<div class="t-row">• Drivers: <em>${d.percentage}% (${d.count})</em></div>`;
                 h += `<div class="t-row" style="margin-left:1rem">média <em style="color:#E8873D">+${d.avg.toFixed(0)}</em>, max <em>+${d.max.toFixed(0)}</em></div>`;
             }
-            
             if (m.composition.anti_drivers) {
                 const a = m.composition.anti_drivers;
                 h += `<div class="t-row">• Anti-drivers: <em>${a.percentage}% (${a.count})</em></div>`;
                 h += `<div class="t-row" style="margin-left:1rem">média <em style="color:#2E4A60">${a.avg.toFixed(0)}</em>, min <em>${a.min.toFixed(0)}</em></div>`;
             }
         }
-        
         h += `<div class="t-row">Relevância média: <em>${((m.avg_relevancia || 0)*100).toFixed(1)}%</em></div>`;
         h += `<div class="t-row">Associações: <em>${m.count || 0}</em></div>`;
         h += `<div class="t-hint">Clique para expandir / colapsar</div>`;
     }
     
-    
-
     tipEl.innerHTML = h;
     tipEl.style.opacity = '1';
     tipEl.style.left = `${ev.clientX + 16}px`;
@@ -1103,21 +1205,13 @@ function getAgregacaoLabel() {
 function getNodeScore(d) {
     if (!d || !d.data || !d.data.metrics) return 0;
     const m = d.data.metrics;
-    
-    if (d.data.leaf) {
-        return m.score_nexas || 0;
-    }
-    
+    if (d.data.leaf) return m.score_nexas || 0;
     switch (state.agregacao) {
-        case 'mean':
-            return m.avg_score || 0;
-        case 'median':
-            return m.median_score || m.avg_score || 0;
-        case 'max':
-            return m.max_score || m.avg_score || 0;
+        case 'mean': return m.avg_score || 0;
+        case 'median': return m.median_score || m.avg_score || 0;
+        case 'max': return m.max_score || m.avg_score || 0;
         case 'weighted_mean':
-        default:
-            return m.avg_score || 0;
+        default: return m.avg_score || 0;
     }
 }
 
@@ -1126,7 +1220,6 @@ function wrapText(text, maxChars = 35) {
     const words = text.split(' ');
     const lines = [];
     let current = '';
-    
     for (const word of words) {
         const test = current ? `${current} ${word}` : word;
         if (test.length <= maxChars) {
@@ -1157,6 +1250,32 @@ function setContexto(onda, assunto, pergunta, direcao) {
     document.getElementById('contexto').textContent = txt;
 }
 
+function updateLegendaContextual() {
+    const ctxAssunto   = document.getElementById('ctx-assunto');
+    const ctxCategoria = document.getElementById('ctx-categoria');
+    const ctxPergunta  = document.getElementById('ctx-pergunta');
+
+    if (ctxAssunto)
+        ctxAssunto.textContent = state.assunto
+            ? `Sua análise está considerando o contexto que parte do assunto: "${state.assunto}"`
+            : '';
+
+    if (ctxCategoria) {
+        if (state.categoria_coluna) {
+            ctxCategoria.textContent = `Você está buscando entender as variáveis que mais se associam com quem respondeu: "${state.categoria_coluna}"`;
+            ctxCategoria.style.display = 'block';
+        } else {
+            ctxCategoria.textContent = '';
+            ctxCategoria.style.display = 'none';
+        }
+    }
+
+    if (ctxPergunta)
+        ctxPergunta.textContent = state.pergunta
+            ? `Especificamente em: "${state.pergunta}"`
+            : '';
+}
+
 function updateMetricas(data) {
     if (!data || !data.tree) {
         document.getElementById('met-total').textContent = '—';
@@ -1165,29 +1284,19 @@ function updateMetricas(data) {
         document.getElementById('met-score').textContent = '—';
         return;
     }
-    
-    let total = 0;
-    let drivers = 0;
-    let antiDrivers = 0;
-    let maxScore = -Infinity;
-    
+    let total = 0, drivers = 0, antiDrivers = 0, maxScore = -Infinity;
     function traverse(node) {
         if (node.leaf && node.metrics) {
             total++;
             const dir = node.metrics.direcao;
             if (dir === 'DRIVER') drivers++;
             else if (dir === 'ANTI-DRIVER') antiDrivers++;
-            
             const score = Math.abs(node.metrics.score_nexas || 0);
             if (score > maxScore) maxScore = score;
         }
-        if (node.children) {
-            node.children.forEach(traverse);
-        }
+        if (node.children) node.children.forEach(traverse);
     }
-    
     traverse(data.tree);
-    
     document.getElementById('met-total').textContent = total;
     document.getElementById('met-drivers').textContent = drivers;
     document.getElementById('met-anti').textContent = antiDrivers;
@@ -1200,7 +1309,6 @@ function updateURL() {
     if (state.assunto) params.set('assunto', state.assunto);
     if (state.pergunta) params.set('pergunta', state.pergunta);
     if (state.direcao) params.set('direcao', state.direcao);
-    
     const newUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, '', newUrl);
 }
@@ -1211,12 +1319,10 @@ function loadFromURL() {
     const assunto = params.get('assunto');
     const pergunta = params.get('pergunta');
     const direcao = params.get('direcao');
-    
     if (onda) state.onda = onda;
     if (assunto) state.assunto = assunto;
     if (pergunta) state.pergunta = pergunta;
     if (direcao) state.direcao = direcao;
-    
     return { onda, assunto, pergunta, direcao };
 }
 
@@ -1227,17 +1333,14 @@ function loadFromURL() {
 function initTheme() {
     const btn = document.getElementById('theme-toggle');
     const icon = document.getElementById('toggle-icon');
-    
     let isDark = true;
     document.documentElement.setAttribute('data-theme', 'dark');
     icon.textContent = '☀️';
-    
     btn.addEventListener('click', () => {
         isDark = !isDark;
         const theme = isDark ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', theme);
         icon.textContent = isDark ? '☀️' : '🌙';
-        
         if (svg) {
             d3.selectAll('.node-text-line').style('fill', getTextColor());
             d3.selectAll('.node circle').style('stroke', getNodeStroke());
@@ -1251,9 +1354,7 @@ function initTheme() {
 
 async function loadData() {
     if (!state.onda || !state.assunto || !state.pergunta) return;
-    
     showLoading('Carregando árvore...');
-    
     try {
         const params = new URLSearchParams();
         params.set('onda', state.onda);
@@ -1261,16 +1362,14 @@ async function loadData() {
         params.set('pergunta', state.pergunta);
         if (state.categoria_coluna) params.set('categoria_coluna', state.categoria_coluna);
         if (state.direcao) params.set('direcao', state.direcao);
-        
         const resp = await fetch(`/api/tree?${params.toString()}`);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        
         const data = await resp.json();
         state.treeData = data;
-        
         setContexto(state.onda, state.assunto, state.pergunta, state.direcao);
         updateMetricas(data);
         updateURL();
+        updateLegendaContextual();
         renderTree(data.tree);
     } catch (err) {
         console.error('Erro ao carregar árvore:', err);
@@ -1285,7 +1384,6 @@ async function loadOndas() {
         const resp = await fetch('/api/ondas');
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const ondas = await resp.json();
-        
         const sel = document.getElementById('onda-select');
         sel.innerHTML = '<option value="">Selecione uma onda</option>';
         ondas.forEach(o => {
@@ -1294,7 +1392,6 @@ async function loadOndas() {
             opt.textContent = o.codigo;
             sel.appendChild(opt);
         });
-        
         if (state.onda) {
             sel.value = state.onda;
             loadAssuntos();
@@ -1306,33 +1403,24 @@ async function loadOndas() {
 
 async function loadAssuntos() {
     if (!state.onda) return;
-    
     try {
         const resp = await fetch(`/api/assuntos?onda=${state.onda}`);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const assuntos = await resp.json();
-        
         const sel = document.getElementById('assunto-select');
         const overlayAssunto = document.getElementById('overlay-assunto');
-        
         sel.innerHTML = '<option value="">Selecione um assunto</option>';
         overlayAssunto.innerHTML = '<option value="">Selecione um assunto</option>';
-        
         assuntos.forEach(a => {
             const opt1 = document.createElement('option');
-            opt1.value = a;
-            opt1.textContent = a;
+            opt1.value = a; opt1.textContent = a;
             sel.appendChild(opt1);
-            
             const opt2 = document.createElement('option');
-            opt2.value = a;
-            opt2.textContent = a;
+            opt2.value = a; opt2.textContent = a;
             overlayAssunto.appendChild(opt2);
         });
-        
         sel.disabled = false;
         overlayAssunto.disabled = false;
-        
         if (state.assunto) {
             sel.value = state.assunto;
             overlayAssunto.value = state.assunto;
@@ -1343,60 +1431,26 @@ async function loadAssuntos() {
     }
 }
 
-
-async function loadCategoriasColuna() {
-    if (!state.onda || !state.assunto || !state.pergunta) return;
-
-    try {
-        const resp = await fetch(
-            `/api/filtros/categorias?onda=${encodeURIComponent(state.onda)}&assunto=${encodeURIComponent(state.assunto)}&pergunta=${encodeURIComponent(state.pergunta)}`
-        );
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
-
-        const sel = document.getElementById('categoria-coluna-select');
-        sel.innerHTML = '<option value="">Todas as categorias</option>';
-        (data.categorias || data).forEach(cat => {
-            const opt = document.createElement('option');
-            opt.value = cat;
-            opt.textContent = cat;
-            sel.appendChild(opt);
-        });
-        sel.disabled = false;
-    } catch (err) {
-        console.error('Erro ao carregar categorias:', err);
-    }
-}
-
 async function loadPerguntas() {
     if (!state.onda || !state.assunto) return;
-    
     try {
-        const resp = await fetch(`/api/perguntas?onda=${state.onda}&assunto=${state.assunto}`);
+        const resp = await fetch(`/api/perguntas?onda=${state.onda}&assunto=${encodeURIComponent(state.assunto)}`);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const perguntas = await resp.json();
-        
         const sel = document.getElementById('pergunta-select');
         const overlayPergunta = document.getElementById('overlay-pergunta');
-        
         sel.innerHTML = '<option value="">Selecione uma pergunta</option>';
         overlayPergunta.innerHTML = '<option value="">Selecione uma pergunta</option>';
-        
         perguntas.forEach(p => {
             const opt1 = document.createElement('option');
-            opt1.value = p;
-            opt1.textContent = p;
+            opt1.value = p; opt1.textContent = p;
             sel.appendChild(opt1);
-            
             const opt2 = document.createElement('option');
-            opt2.value = p;
-            opt2.textContent = p;
+            opt2.value = p; opt2.textContent = p;
             overlayPergunta.appendChild(opt2);
         });
-        
         sel.disabled = false;
         overlayPergunta.disabled = false;
-        
         if (state.pergunta) {
             sel.value = state.pergunta;
             overlayPergunta.value = state.pergunta;
@@ -1408,26 +1462,44 @@ async function loadPerguntas() {
     }
 }
 
+async function loadCategoriasColuna() {
+    if (!state.onda || !state.assunto || !state.pergunta) return;
+    try {
+        const resp = await fetch(
+            `/api/filtros/categorias?onda=${encodeURIComponent(state.onda)}&assunto=${encodeURIComponent(state.assunto)}&pergunta=${encodeURIComponent(state.pergunta)}`
+        );
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        const sel = document.getElementById('categoria-coluna-select');
+        sel.innerHTML = '<option value="">Todas as categorias</option>';
+        const categorias = data.categorias || data;
+        categorias.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.textContent = cat;
+            sel.appendChild(opt);
+        });
+        sel.disabled = false;
+    } catch (err) {
+        console.error('Erro ao carregar categorias:', err);
+    }
+}
+
 // ═══════════════════════════════════════════════════════════
 // RENDERIZAÇÃO DO DENDROGRAMA
 // ═══════════════════════════════════════════════════════════
 
 function renderTree(data) {
     if (!data) return;
-    
     const container = document.getElementById('svg-container');
     container.innerHTML = '';
-    
     const width = container.clientWidth;
     const height = container.clientHeight;
-    
     svg = d3.select('#svg-container')
         .append('svg')
         .attr('width', width)
         .attr('height', height);
-    
     g = svg.append('g');
-    
     const zoom = d3.zoom()
         .scaleExtent([0.1, 10])
         .on('zoom', (event) => {
@@ -1435,18 +1507,13 @@ function renderTree(data) {
             state.zoomLevel = event.transform.k;
             document.getElementById('zoom-pct').textContent = Math.round(event.transform.k * 100) + '%';
         });
-    
     svg.call(zoom);
-    
     treemap = d3.tree().nodeSize([state.nodeYSpacing, state.nodeXSpacing]);
     root = d3.hierarchy(data);
-    
     root.x0 = height / 2;
     root.y0 = 0;
-    
     root.children?.forEach(collapse);
     update(root);
-    
     const initialTransform = d3.zoomIdentity.translate(100, height / 2).scale(1);
     svg.call(zoom.transform, initialTransform);
 }
@@ -1455,12 +1522,8 @@ function update(source) {
     const treeData = treemap(root);
     const nodes = treeData.descendants();
     const links = treeData.links();
-    
     nodes.forEach(d => { d.y = d.depth * state.nodeXSpacing; });
-    
-    const node = g.selectAll('g.node')
-        .data(nodes, d => d.id || (d.id = ++i));
-    
+    const node = g.selectAll('g.node').data(nodes, d => d.id || (d.id = ++i));
     const nodeEnter = node.enter().append('g')
         .attr('class', 'node')
         .attr('transform', d => `translate(${source.y0},${source.x0})`)
@@ -1471,13 +1534,11 @@ function update(source) {
             tipEl.style.top = `${ev.clientY - 10}px`;
         })
         .on('mouseout', hideTip);
-    
     nodeEnter.append('circle')
         .attr('r', 5)
         .style('fill', d => nodeColor(d))
         .style('stroke', getNodeStroke())
         .style('stroke-width', '2px');
-    
     nodeEnter.append('text')
         .attr('class', 'node-text')
         .attr('dy', '.35em')
@@ -1498,99 +1559,43 @@ function update(source) {
                     .style('fill', getTextColor());
             });
         });
-    
     const nodeUpdate = nodeEnter.merge(node);
-    
-    nodeUpdate.transition()
-        .duration(500)
-        .attr('transform', d => `translate(${d.y},${d.x})`);
-    
-    nodeUpdate.select('circle')
-        .style('fill', d => nodeColor(d))
-        .style('stroke', getNodeStroke())
-        .attr('r', 5);
-    
-    const nodeExit = node.exit().transition()
-        .duration(500)
-        .attr('transform', d => `translate(${source.y},${source.x})`)
-        .remove();
-    
+    nodeUpdate.transition().duration(500).attr('transform', d => `translate(${d.y},${d.x})`);
+    nodeUpdate.select('circle').style('fill', d => nodeColor(d)).style('stroke', getNodeStroke()).attr('r', 5);
+    const nodeExit = node.exit().transition().duration(500).attr('transform', d => `translate(${source.y},${source.x})`).remove();
     nodeExit.select('circle').attr('r', 0);
     nodeExit.select('text').style('opacity', 0);
-    
-    diagonal = d3.linkHorizontal()
-        .x(d => d.y)
-        .y(d => d.x);
-    
-    const link = g.selectAll('path.link')
-        .data(links, d => d.target.id);
-    
+    diagonal = d3.linkHorizontal().x(d => d.y).y(d => d.x);
+    const link = g.selectAll('path.link').data(links, d => d.target.id);
     const linkEnter = link.enter().insert('path', 'g')
         .attr('class', 'link')
-        .attr('d', d => {
-            const o = {x: source.x0, y: source.y0};
-            return diagonal({source: o, target: o});
-        })
+        .attr('d', d => { const o = {x: source.x0, y: source.y0}; return diagonal({source: o, target: o}); })
         .style('fill', 'none')
         .style('stroke', d => linkColor(d.target))
-        .style('stroke-width', d => {
-            const score = Math.abs(getNodeScore(d.target));
-            return Math.max(1, Math.min(4, score / 200));
-        })
+        .style('stroke-width', d => { const score = Math.abs(getNodeScore(d.target)); return Math.max(1, Math.min(4, score / 200)); })
         .style('opacity', 0.6);
-    
     const linkUpdate = linkEnter.merge(link);
-    
-    linkUpdate.transition()
-        .duration(500)
-        .attr('d', diagonal)
+    linkUpdate.transition().duration(500).attr('d', diagonal)
         .style('stroke', d => linkColor(d.target))
-        .style('stroke-width', d => {
-            const score = Math.abs(getNodeScore(d.target));
-            return Math.max(1, Math.min(4, score / 200));
-        });
-    
-    link.exit().transition()
-        .duration(500)
-        .attr('d', d => {
-            const o = {x: source.x, y: source.y};
-            return diagonal({source: o, target: o});
-        })
-        .remove();
-    
-    nodes.forEach(d => {
-        d.x0 = d.x;
-        d.y0 = d.y;
-    });
+        .style('stroke-width', d => { const score = Math.abs(getNodeScore(d.target)); return Math.max(1, Math.min(4, score / 200)); });
+    link.exit().transition().duration(500).attr('d', d => { const o = {x: source.x, y: source.y}; return diagonal({source: o, target: o}); }).remove();
+    nodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
 }
 
 let i = 0;
 
 function click(event, d) {
-    if (d.children) {
-        d._children = d.children;
-        d.children = null;
-    } else {
-        d.children = d._children;
-        d._children = null;
-    }
+    if (d.children) { d._children = d.children; d.children = null; }
+    else { d.children = d._children; d._children = null; }
     update(d);
 }
 
 function collapse(d) {
-    if (d.children) {
-        d._children = d.children;
-        d._children.forEach(collapse);
-        d.children = null;
-    }
+    if (d.children) { d._children = d.children; d._children.forEach(collapse); d.children = null; }
 }
 
 function expand(d) {
-    if (d._children) {
-        d.children = d._children;
-        d.children.forEach(expand);
-        d._children = null;
-    }
+    if (d._children) { d.children = d._children; d.children.forEach(expand); d._children = null; }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1615,30 +1620,19 @@ function zoomFit() {
 }
 
 function searchNodes(query) {
-    if (!query || !root) {
-        g.selectAll('.node').classed('highlighted', false).classed('dimmed', false);
-        return;
-    }
-    
+    if (!query || !root) { g.selectAll('.node').classed('highlighted', false).classed('dimmed', false); return; }
     const q = query.toLowerCase();
     const nodes = root.descendants();
     const matches = nodes.filter(d => d.data.name?.toLowerCase().includes(q));
-    
     g.selectAll('.node').classed('dimmed', true);
-    
     matches.forEach(match => {
         let current = match;
         while (current) {
-            if (current._children) {
-                current.children = current._children;
-                current._children = null;
-            }
+            if (current._children) { current.children = current._children; current._children = null; }
             current = current.parent;
         }
     });
-    
     update(root);
-    
     g.selectAll('.node').each(function(d) {
         const isMatch = matches.includes(d);
         d3.select(this).classed('highlighted', isMatch).classed('dimmed', !isMatch);
@@ -1647,36 +1641,29 @@ function searchNodes(query) {
 
 function exportPNG() {
     showLoading('Gerando PNG...');
-    
     setTimeout(() => {
         try {
             const svgEl = svg.node();
             const bbox = g.node().getBBox();
             const padding = 40;
-            
             const canvas = document.createElement('canvas');
             canvas.width = bbox.width + padding * 2;
             canvas.height = bbox.height + padding * 2;
-            
             const ctx = canvas.getContext('2d');
             const theme = document.documentElement.getAttribute('data-theme');
             ctx.fillStyle = theme === 'dark' ? '#0f172a' : '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
             const svgString = new XMLSerializer().serializeToString(svgEl);
             const svgBlob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
             const url = URL.createObjectURL(svgBlob);
-            
             const img = new Image();
             img.onload = () => {
                 ctx.drawImage(img, padding - bbox.x, padding - bbox.y);
-                
                 canvas.toBlob(blob => {
                     const link = document.createElement('a');
                     link.download = `nexas-dendrograma-${state.onda}-${Date.now()}.png`;
                     link.href = URL.createObjectURL(blob);
                     link.click();
-                    
                     URL.revokeObjectURL(url);
                     hideLoading();
                 });
@@ -1689,185 +1676,162 @@ function exportPNG() {
         }
     }, 100);
 }
-function resizeDendrogram() {
-    if (!svg || !root) return; // Só roda se o gráfico já existir
 
+function resizeDendrogram() {
+    if (!svg || !root) return;
     const container = document.getElementById('svg-container');
     const newWidth = container.clientWidth;
     const newHeight = container.clientHeight;
-
-    // 1. Atualiza as dimensões do SVG raiz
-    d3.select('#svg-container svg')
-        .attr('width', newWidth)
-        .attr('height', newHeight);
-
-    // 2. Reposiciona o nó raiz (root) no centro da nova altura
+    d3.select('#svg-container svg').attr('width', newWidth).attr('height', newHeight);
     root.x0 = newHeight / 2;
     root.y0 = 0;
-
-    // 3. Opcional: Re-centraliza a câmera usando a identidade de zoom anterior
-    // Se quiser que o gráfico sempre volte para o meio da tela ao maximizar/minimizar:
     const t = d3.zoomIdentity.translate(100, newHeight / 2).scale(state.zoomLevel);
     svg.transition().duration(300).call(d3.zoom().transform, t);
-    
-    // 4. Redesenha a árvore
     update(root);
 }
+
 // ═══════════════════════════════════════════════════════════
 // INICIALIZAÇÃO
 // ═══════════════════════════════════════════════════════════
 
 function init() {
     initTheme();
-    
-    const urlState = loadFromURL();
+    loadFromURL();
     loadOndas();
-    
-    // Event listeners - Modo Compacto
+
+    // Drag nas legendas
+    makeDraggable(document.getElementById('legend-expanded'), 'nexas_legend_pos');
+    makeDraggable(document.getElementById('legend-contextual'), 'nexas_ctx_legend_pos');
+
+    // Modo Compacto
     document.getElementById('btn-toggle-compact').addEventListener('click', toggleCompactMode);
-    
-    // Event listeners - Overlay
+
+    // Overlay de filtros
     document.getElementById('btn-filters').addEventListener('click', openFiltersOverlay);
     document.getElementById('filters-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'filters-overlay') closeFiltersOverlay();
     });
-    
-    // Event listeners - Selects principais
+
+    // Selects principais
     document.getElementById('onda-select').addEventListener('change', (e) => {
         state.onda = e.target.value;
         state.assunto = null;
         state.pergunta = null;
+        state.categoria_coluna = null;
         document.getElementById('assunto-select').disabled = true;
         document.getElementById('pergunta-select').disabled = true;
+        document.getElementById('categoria-coluna-select').innerHTML = '<option value="">Todas as categorias</option>';
+        document.getElementById('categoria-coluna-select').disabled = true;
         if (state.onda) loadAssuntos();
     });
-    
+
     document.getElementById('assunto-select').addEventListener('change', (e) => {
         state.assunto = e.target.value;
         state.pergunta = null;
+        state.categoria_coluna = null;
         document.getElementById('pergunta-select').disabled = true;
+        document.getElementById('categoria-coluna-select').innerHTML = '<option value="">Todas as categorias</option>';
+        document.getElementById('categoria-coluna-select').disabled = true;
         if (state.assunto) loadPerguntas();
     });
-    
+
     document.getElementById('pergunta-select').addEventListener('change', (e) => {
         state.pergunta = e.target.value;
         state.categoria_coluna = null;
-        const sel = document.getElementById('categoria-coluna-select');
-        sel.innerHTML = '<option value="">Todas as categorias</option>';
-        sel.disabled = true;
+        document.getElementById('categoria-coluna-select').innerHTML = '<option value="">Todas as categorias</option>';
+        document.getElementById('categoria-coluna-select').disabled = true;
         if (state.pergunta) {
             loadCategoriasColuna();
             loadData();
-    }
-});
+        }
+    });
 
     document.getElementById('categoria-coluna-select').addEventListener('change', (e) => {
         state.categoria_coluna = e.target.value || null;
         if (state.pergunta) loadData();
-});
-    
+    });
+
     document.getElementById('direcao-select').addEventListener('change', (e) => {
         state.direcao = e.target.value || null;
         if (state.pergunta) loadData();
     });
-    
-    // Event listeners - Selects do overlay
+
+    // Overlay selects
     document.getElementById('overlay-assunto').addEventListener('change', (e) => {
         state.assunto = e.target.value;
         document.getElementById('assunto-select').value = e.target.value;
         state.pergunta = null;
         if (state.assunto) loadPerguntas();
     });
-    
+
     document.getElementById('overlay-pergunta').addEventListener('change', (e) => {
         state.pergunta = e.target.value;
         document.getElementById('pergunta-select').value = e.target.value;
         if (state.pergunta) loadData();
     });
-    
+
     document.getElementById('overlay-direcao').addEventListener('change', (e) => {
         state.direcao = e.target.value || null;
         document.getElementById('direcao-select').value = e.target.value;
         if (state.pergunta) loadData();
     });
-    
+
     document.getElementById('agregacao-select').addEventListener('change', (e) => {
         state.agregacao = e.target.value;
         if (root) update(root);
     });
-    
-    // Event listeners - Zoom
+
+    // Zoom
     document.getElementById('btn-zoom-in').addEventListener('click', zoomIn);
     document.getElementById('btn-zoom-out').addEventListener('click', zoomOut);
     document.getElementById('btn-zoom-fit').addEventListener('click', zoomFit);
-    
-    // Event listeners - Sliders
+
+    // Sliders
     document.getElementById('slider-y').addEventListener('input', (e) => {
         state.nodeYSpacing = +e.target.value;
         document.getElementById('val-y').textContent = e.target.value;
-        if (root) {
-            treemap.nodeSize([state.nodeYSpacing, state.nodeXSpacing]);
-            update(root);
-        }
+        if (root) { treemap.nodeSize([state.nodeYSpacing, state.nodeXSpacing]); update(root); }
     });
-    
+
     document.getElementById('slider-x').addEventListener('input', (e) => {
         state.nodeXSpacing = +e.target.value;
         document.getElementById('val-x').textContent = e.target.value;
-        if (root) {
-            treemap.nodeSize([state.nodeYSpacing, state.nodeXSpacing]);
-            update(root);
-        }
+        if (root) { treemap.nodeSize([state.nodeYSpacing, state.nodeXSpacing]); update(root); }
     });
-    
-    // Event listeners - Busca
-    document.getElementById('search-box').addEventListener('input', (e) => {
-        searchNodes(e.target.value);
-    });
-    
+
+    // Busca
+    document.getElementById('search-box').addEventListener('input', (e) => { searchNodes(e.target.value); });
     document.getElementById('btn-clear-search').addEventListener('click', () => {
         document.getElementById('search-box').value = '';
         searchNodes('');
     });
-    
-    // Event listeners - Expand/Collapse
+
+    // Expand/Collapse
     document.getElementById('btn-expand').addEventListener('click', () => {
-        if (root) {
-            root.children?.forEach(expand);
-            update(root);
-        }
+        if (root) { root.children?.forEach(expand); update(root); }
     });
-    
     document.getElementById('btn-collapse').addEventListener('click', () => {
-        if (root) {
-            root.children?.forEach(collapse);
-            update(root);
-        }
-    });
-    
-    // Event listener - Export
-    document.getElementById('btn-export').addEventListener('click', exportPNG);
-    
-    // Hotkeys
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'h' || e.key === 'H') {
-            if (!e.target.matches('input, select, textarea')) {
-                toggleCompactMode();
-            }
-        }
-        if (e.key === 'Escape') {
-            closeFiltersOverlay();
-        }
+        if (root) { root.children?.forEach(collapse); update(root); }
     });
 
+    // Export
+    document.getElementById('btn-export').addEventListener('click', exportPNG);
+
+    // Hotkeys
+    document.addEventListener('keydown', (e) => {
+        if ((e.key === 'h' || e.key === 'H') && !e.target.matches('input, select, textarea')) {
+            toggleCompactMode();
+        }
+        if (e.key === 'Escape') closeFiltersOverlay();
+    });
+
+    // Resize
     window.addEventListener('resize', () => {
-        // Usa um debounce simples para não sobrecarregar o D3
         clearTimeout(window.resizeTimer);
         window.resizeTimer = setTimeout(resizeDendrogram, 250);
     });
 }
 
-// Inicializar ao carregar
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
