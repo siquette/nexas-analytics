@@ -1141,6 +1141,8 @@ function showTip(ev, d) {
         h += `<div class="t-row">Categoria: <em>${m.categoria_direcao || 'N/A'}</em></div>`;
         h += `<div class="t-row">Lift: <em>${(m.lift || 0).toFixed(3)}</em></div>`;
         h += `<div class="t-row">Relevância: <em>${((m.relevancia || 0)*100).toFixed(1)}%</em></div>`;
+        if (m.per_relativo != null)
+            h += `<div class="t-row">% Relativo: <em>${m.per_relativo.toFixed(1)}%</em></div>`;
         if (m.base_comum) h += `<div class="t-row">Base comum: <em>${m.base_comum}</em></div>`;
     } else {
         h += `<div class="t-row">Score Médio (${getAgregacaoLabel()}): <em style="color:${scoreColor};font-weight:bold">${score.toFixed(2)}</em></div>`;

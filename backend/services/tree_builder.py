@@ -234,6 +234,7 @@ def _build_nivel1_from_assuntos(assuntos: dict) -> list[TreeNode]:
                         categoria_direcao=row.categoria_direcao or "",
                         rank_global=row.rank_global,
                         base_comum=row.base_cat_comum,
+                        per_relativo=float(row.per_relativo) if row.per_relativo is not None else None,
                     ),
                     value=abs(float(row.score_relevancia)) if row.score_relevancia else 0,
                 )

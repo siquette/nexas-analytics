@@ -1,5 +1,5 @@
 """
-services/ingestor.py — Lê o XLSX, valida e insere no PostgreSQL.
+services/ingestor.py — Lê o XLSX, valida e insere no banco.
 
 Esse é o ponto de entrada dos dados no sistema.
 Quando chega um XLSX novo da pesquisa, esse service:
@@ -10,6 +10,10 @@ Quando chega um XLSX novo da pesquisa, esse service:
 
 O XLSX chega pronto (lift já calculado). Esse service
 NÃO faz cálculos — só valida e persiste.
+
+COLUMN_MAP atualizado para o novo formato de XLSX (v2):
+- Nomes de colunas simplificados (sem acentos, sem espaços longos)
+- Nova coluna: PER_RELATIVO % → per_relativo
 """
 
 import logging
@@ -25,27 +29,27 @@ logger = logging.getLogger(__name__)
 
 
 # Mapeamento: nome da coluna no XLSX → nome da coluna no banco
-# Os nomes do XLSX têm espaços, acentos e nomes longos.
-# O banco usa snake_case limpo.
+# Formato novo (v2) — colunas simplificadas sem acentos
 COLUMN_MAP = {
-    "ASSUNTO_COLUNA": "assunto_coluna",
-    "PERGUNTA_COLUNA": "pergunta_coluna",
-    "CATEGORIA_COLUNA": "categoria_coluna",
-    "ASSUNTO_LINHA": "assunto_linha",
-    "PERGUNTA_LINHA": "pergunta_linha",
-    "CATEGORIA_LINHA": "categoria_linha",
-    "LIFT (intensidade relativa)": "lift",
-    "BASE RESPONDENTE DA PERGUNTA EM COMUM": "base_pergunta_comum",
-    "BASE RESPONDENTE CATEGORIA DA COLUNA": "base_cat_coluna",
-    "BASE RESPONDENTE CATEGORIA DA LINHA": "base_cat_linha",
-    "BASE RESPONDENTE DA CATEGORIA EM COMUM": "base_cat_comum",
-    "SCORE DE RELEVÂNCIA": "score_relevancia",
-    "SCORE ABSOLUTO": "score_absoluto",
-    "DIREÇÃO": "direcao",
-    "CATEGORIA DA DIREÇÃO": "categoria_direcao",
-    "RANK": "rank_global",
-    "RANK - PERCENTIL DE RELEVÂNCIA": "percentil_relevancia",
-    "RANKING FINAL DE DRIVERS": "ranking_final",
+    "ASSUNTO_COLUNA":           "assunto_coluna",
+    "PERGUNTA_COLUNA":          "pergunta_coluna",
+    "CATEGORIA_COLUNA":         "categoria_coluna",
+    "ASSUNTO_LINHA":            "assunto_linha",
+    "PERGUNTA_LINHA":           "pergunta_linha",
+    "CATEGORIA_LINHA":          "categoria_linha",
+    "LIFT":                     "lift",
+    "BASE_PERGUNTA_COMUM":      "base_pergunta_comum",
+    "BASE_CAT_COLUNA":          "base_cat_coluna",
+    "BASE_CAT_LINHA":           "base_cat_linha",
+    "BASE_CAT_COMUM":           "base_cat_comum",
+    "SCORE":                    "score_relevancia",
+    "SCORE_ABSOLUTO":           "score_absoluto",
+    "DIRECAO":                  "direcao",
+    "CATEGORIA_DIRECAO":        "categoria_direcao",
+    "RANK":                     "rank_global",
+    "PERCENTIL":                "percentil_relevancia",
+    "RANKING_FINAL_DRIVERS":    "ranking_final",
+    "PER_RELATIVO %":           "per_relativo",
 }
 
 # Colunas obrigatórias no XLSX (se faltar alguma, rejeita)
@@ -96,7 +100,7 @@ def validate_xlsx(df: pd.DataFrame) -> list[str]:
         raise IngestorError("O XLSX não contém dados (0 linhas).")
 
     # Checar se LIFT é numérico
-    if not pd.api.types.is_numeric_dtype(df["LIFT (intensidade relativa)"]):
+    if not pd.api.types.is_numeric_dtype(df["LIFT"]):
         raise IngestorError("Coluna LIFT não é numérica.")
 
     # Checar valores nulos nas colunas de chave
@@ -181,7 +185,7 @@ def ingest_xlsx(
     logger.info(f"Onda criada: {onda}")
 
     # --- 6. Preparar e inserir dados ---
-    # Renomeia colunas do XLSX para o padrão do banco
+    # Seleciona e renomeia apenas as colunas mapeadas
     df_renamed = df[list(COLUMN_MAP.keys())].rename(columns=COLUMN_MAP)
 
     # Adiciona a FK da onda
@@ -193,6 +197,12 @@ def ingest_xlsx(
     for col in int_cols:
         if col in df_renamed.columns:
             df_renamed[col] = df_renamed[col].where(df_renamed[col].notna(), None)
+
+    # Limpa NaNs de per_relativo (coluna nova, pode vir incompleta)
+    if "per_relativo" in df_renamed.columns:
+        df_renamed["per_relativo"] = df_renamed["per_relativo"].where(
+            df_renamed["per_relativo"].notna(), None
+        )
 
     # Inserção em batch (muito mais rápido que um INSERT por linha)
     records = df_renamed.to_dict(orient="records")
