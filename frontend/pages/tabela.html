@@ -1,0 +1,222 @@
+<!-- pages/tabela.html -->
+<!-- Injetado dinamicamente pelo index.html quando a aba Tabela é selecionada -->
+
+<div id="tabela-page">
+
+    <div id="tabela-status" style="
+        padding: 2rem;
+        text-align: center;
+        color: var(--text-tertiary);
+        font-size: 0.95rem;
+    ">
+        Selecione onda, assunto e pergunta nos filtros acima para carregar a tabela.
+    </div>
+
+    <div id="tabela-container" style="display:none">
+
+        <!-- Toolbar da tabela -->
+        <div style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 2rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        ">
+            <div style="display:flex;align-items:center;gap:0.5rem">
+                <span style="font-size:0.85rem;color:var(--text-tertiary);font-weight:600">
+                    TOTAL:
+                </span>
+                <span id="tabela-total" style="font-size:0.85rem;color:var(--text-primary);font-weight:700">
+                    —
+                </span>
+                <span style="font-size:0.85rem;color:var(--text-tertiary)">registros</span>
+            </div>
+
+            <div style="display:flex;gap:0.5rem">
+                <button id="btn-download-csv" style="
+                    background: var(--bg-tertiary);
+                    color: var(--text-primary);
+                    border: 1px solid var(--border-color);
+                    padding: 0.4rem 0.9rem;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 0.85rem;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                ">⬇ CSV</button>
+
+                <button id="btn-download-xlsx" style="
+                    background: var(--bg-tertiary);
+                    color: var(--text-primary);
+                    border: 1px solid var(--border-color);
+                    padding: 0.4rem 0.9rem;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 0.85rem;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                ">⬇ Excel</button>
+            </div>
+        </div>
+
+        <!-- Tabela -->
+        <div style="overflow-x:auto; overflow-y:auto; max-height: calc(100vh - 200px);">
+            <table id="tabela-dados" style="
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 0.82rem;
+            ">
+                <thead>
+                    <tr id="tabela-header" style="
+                        background: var(--bg-secondary);
+                        position: sticky;
+                        top: 0;
+                        z-index: 10;
+                    "></tr>
+                </thead>
+                <tbody id="tabela-body"></tbody>
+            </table>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+(function() {
+    // Colunas e seus labels
+    const COLUNAS = [
+        { key: 'categoria_coluna',      label: 'CATEGORIA COLUNA' },
+        { key: 'assunto_linha',         label: 'ASSUNTO LINHA' },
+        { key: 'pergunta_linha',        label: 'PERGUNTA LINHA' },
+        { key: 'categoria_linha',       label: 'CATEGORIA LINHA' },
+        { key: 'lift',                  label: 'LIFT' },
+        { key: 'score_absoluto',        label: 'SCORE ABSOLUTO' },
+        { key: 'direcao',               label: 'DIREÇÃO' },
+        { key: 'categoria_direcao',     label: 'CATEGORIA DIREÇÃO' },
+        { key: 'rank_global',           label: 'RANK GLOBAL' },
+        { key: 'percentil_relevancia',  label: 'PERCENTIL' },
+        { key: 'ranking_final',         label: 'RANKING FINAL' },
+        { key: 'per_relativo',          label: '% RELATIVO' },
+    ];
+
+    const DIRECAO_COLORS = {
+        'DRIVER':       '#E8873D',
+        'ANTI-DRIVER':  '#5A8AB8',
+        'BAIXA RELEVÂNCIA': '#6B7F8C',
+    };
+
+    // Montar header
+    const headerRow = document.getElementById('tabela-header');
+    COLUNAS.forEach(col => {
+        const th = document.createElement('th');
+        th.textContent = col.label;
+        th.style.cssText = `
+            padding: 0.6rem 0.75rem;
+            text-align: left;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            border-bottom: 2px solid var(--border-color);
+            white-space: nowrap;
+            letter-spacing: 0.04em;
+        `;
+        headerRow.appendChild(th);
+    });
+
+    function renderTabela(rows) {
+        const tbody = document.getElementById('tabela-body');
+        tbody.innerHTML = '';
+
+        rows.forEach((row, idx) => {
+            const tr = document.createElement('tr');
+            tr.style.cssText = `
+                background: ${idx % 2 === 0 ? 'var(--bg-primary)' : 'var(--bg-secondary)'};
+                transition: background 0.15s;
+            `;
+            tr.addEventListener('mouseenter', () => {
+                tr.style.background = 'var(--hover-bg)';
+            });
+            tr.addEventListener('mouseleave', () => {
+                tr.style.background = idx % 2 === 0 ? 'var(--bg-primary)' : 'var(--bg-secondary)';
+            });
+
+            COLUNAS.forEach(col => {
+                const td = document.createElement('td');
+                let val = row[col.key];
+
+                // Formatação por tipo de coluna
+                if (col.key === 'direcao') {
+                    const color = DIRECAO_COLORS[val] || 'var(--text-primary)';
+                    td.innerHTML = `<span style="color:${color};font-weight:600">${val || '—'}</span>`;
+                } else if (col.key === 'lift') {
+                    td.textContent = val != null ? val.toFixed(3) : '—';
+                } else if (col.key === 'score_absoluto') {
+                    td.textContent = val != null ? val.toFixed(2) : '—';
+                } else if (col.key === 'percentil_relevancia') {
+                    td.textContent = val != null ? (val * 100).toFixed(1) + '%' : '—';
+                } else if (col.key === 'per_relativo') {
+                    td.textContent = val != null ? val.toFixed(1) + '%' : '—';
+                } else {
+                    td.textContent = val != null ? val : '—';
+                }
+
+                td.style.cssText = `
+                    padding: 0.5rem 0.75rem;
+                    border-bottom: 1px solid var(--border-color);
+                    color: var(--text-primary);
+                    white-space: ${['pergunta_linha', 'categoria_linha', 'ranking_final'].includes(col.key) ? 'normal' : 'nowrap'};
+                    max-width: ${['pergunta_linha'].includes(col.key) ? '280px' : 'none'};
+                    font-size: 0.82rem;
+                `;
+                tr.appendChild(td);
+            });
+
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('tabela-total').textContent = rows.length.toLocaleString('pt-BR');
+        document.getElementById('tabela-status').style.display = 'none';
+        document.getElementById('tabela-container').style.display = 'block';
+    }
+
+    async function loadTabela() {
+        if (!NexasState.isReady()) return;
+
+        document.getElementById('tabela-status').textContent = 'Carregando...';
+        document.getElementById('tabela-status').style.display = 'block';
+        document.getElementById('tabela-container').style.display = 'none';
+
+        try {
+            const rows = await NexasAPI.getTabela(NexasState.toParams());
+            renderTabela(rows);
+        } catch (err) {
+            document.getElementById('tabela-status').textContent = 'Erro ao carregar tabela: ' + err.message;
+        }
+    }
+
+    // Downloads
+    document.getElementById('btn-download-csv').addEventListener('click', () => {
+        if (!NexasState.isReady()) return;
+        NexasAPI.downloadTabela('csv', NexasState.toParams());
+    });
+
+    document.getElementById('btn-download-xlsx').addEventListener('click', () => {
+        if (!NexasState.isReady()) return;
+        NexasAPI.downloadTabela('xlsx', NexasState.toParams());
+    });
+
+    // Escuta mudanças de state — recarrega quando filtros mudam
+    NexasState.onChange((key) => {
+        if (['onda', 'assunto', 'pergunta', 'categoria_coluna', 'direcao'].includes(key)) {
+            if (NexasState.isReady()) loadTabela();
+        }
+    });
+
+    // Carrega ao inicializar se filtros já estão preenchidos
+    if (NexasState.isReady()) loadTabela();
+})();
+</script>
