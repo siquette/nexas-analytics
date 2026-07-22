@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NEXAS Analytics v3.0</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="js/state.js"></script>
-    <script src="js/api.js"></script>
     <style>
         :root[data-theme="dark"] {
             --bg-primary: #0f172a;
@@ -22,7 +20,6 @@
             --input-border: #475569;
             --svg-bg: #0f172a;
             --node-stroke: #1e293b;
-            --tab-active: #3b82f6;
         }
         :root[data-theme="light"] {
             --bg-primary: #ffffff;
@@ -38,7 +35,6 @@
             --input-border: #cbd5e1;
             --svg-bg: #ffffff;
             --node-stroke: #e2e8f0;
-            --tab-active: #2563eb;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -53,440 +49,223 @@
         .header {
             background: var(--bg-secondary);
             border-bottom: 1px solid var(--border-color);
-            padding: 0 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 56px;
+            padding: 1rem 2rem;
+            display: flex; justify-content: space-between; align-items: center;
+            height: 60px; transition: all 0.3s ease;
         }
-        .header h1 {
-            font-size: 1.3rem;
-            font-weight: 700;
-            letter-spacing: 0.05em;
-        }
-        .header-right {
-            display: flex;
-            gap: 0.75rem;
-            align-items: center;
-        }
+        body.minimized .header { height: 40px; padding: 0.5rem 2rem; }
+        .header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.05em; transition: all 0.3s ease; }
+        body.minimized .header h1 { font-size: 1.1rem; }
+        .header-right { display: flex; gap: 1rem; align-items: center; }
+        body.minimized .header-right select { display: none; }
+        body.minimized .header-right { gap: 0.5rem; }
 
-        /* ── NAVBAR DE ABAS ── */
-        .tab-nav {
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            gap: 0;
-            padding: 0 2rem;
-        }
+        /* ── ABAS ── */
+        .tab-nav { background: var(--bg-secondary); border-bottom: 2px solid var(--border-color); display: flex; padding: 0 2rem; }
         .tab-btn {
-            background: transparent;
-            border: none;
-            border-bottom: 3px solid transparent;
-            color: var(--text-tertiary);
-            padding: 0.6rem 1.2rem;
-            cursor: pointer;
-            font-size: 0.85rem;
-            font-weight: 600;
-            letter-spacing: 0.03em;
-            transition: all 0.2s ease;
+            background: transparent; border: none; border-bottom: 3px solid transparent;
+            margin-bottom: -2px; color: var(--text-tertiary);
+            padding: 0.6rem 1.2rem; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+            letter-spacing: 0.03em; transition: all 0.2s;
         }
         .tab-btn:hover { color: var(--text-primary); }
-        .tab-btn.active {
-            color: var(--tab-active);
-            border-bottom-color: var(--tab-active);
-        }
+        .tab-btn.active { color: #3b82f6; border-bottom-color: #3b82f6; }
 
         /* ── CONTROLES COLAPSÁVEIS ── */
         .controls-wrapper { transition: all 0.3s ease; }
         body.minimized .controls-wrapper { display: none; }
-
         .section-collapsible { border-bottom: 1px solid var(--border-color); }
         .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.6rem 2rem;
-            background: var(--bg-secondary);
-            cursor: pointer;
-            user-select: none;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.75rem 2rem; background: var(--bg-secondary); cursor: pointer; user-select: none;
         }
         .section-header:hover { background: var(--hover-bg); }
-        .section-title {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .section-toggle {
-            font-size: 1rem;
-            color: var(--text-tertiary);
-            transition: transform 0.3s ease;
-        }
+        .section-title { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .section-toggle { font-size: 1.2rem; color: var(--text-tertiary); transition: transform 0.3s ease; }
         .section-collapsed .section-toggle { transform: rotate(-90deg); }
-        .section-content {
-            max-height: 500px;
-            overflow: hidden;
-            transition: max-height 0.3s ease, opacity 0.3s ease;
-            opacity: 1;
-        }
+        .section-content { max-height: 500px; overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease; }
         .section-collapsed .section-content { max-height: 0; opacity: 0; }
-
-        .contexto {
-            background: var(--bg-secondary);
-            padding: 0.6rem 2rem;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-        .filtros {
-            background: var(--bg-primary);
-            padding: 0.75rem 2rem;
-            display: flex;
-            gap: 0.75rem;
-        }
+        .contexto { background: var(--bg-secondary); padding: 0.75rem 2rem; font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; }
+        .filtros { background: var(--bg-primary); padding: 1rem 2rem; display: flex; gap: 1rem; }
         .filtros select {
-            flex: 1;
-            min-width: 0;
-            padding: 0.5rem 0.75rem;
-            background: var(--input-bg);
-            color: var(--text-primary);
-            border: 1px solid var(--input-border);
-            border-radius: 6px;
-            font-size: 0.85rem;
-            cursor: pointer;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            transition: all 0.2s;
+            flex: 1; min-width: 0; padding: 0.6rem 1rem;
+            background: var(--input-bg); color: var(--text-primary);
+            border: 1px solid var(--input-border); border-radius: 6px;
+            font-size: 0.9rem; cursor: pointer;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: all 0.2s;
         }
+        .filtros select:hover { background: var(--hover-bg); }
         .filtros select:focus { outline: 2px solid #3b82f6; outline-offset: 2px; }
-        .metricas {
-            display: flex;
-            gap: 1.5rem;
-            padding: 1rem 2rem;
-            background: var(--bg-primary);
-        }
-        .metrica-item .valor {
-            font-size: 1.6rem;
-            font-weight: 700;
-            color: var(--text-primary);
-        }
-        .metrica-item .label {
-            font-size: 0.7rem;
-            color: var(--text-tertiary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-weight: 600;
-        }
+        .metricas { display: flex; gap: 1.5rem; padding: 1.5rem 2rem; background: var(--bg-primary); }
+        .metrica-item { display: flex; flex-direction: column; gap: 0.3rem; }
+        .metrica-item .valor { font-size: 1.8rem; font-weight: 700; }
+        .metrica-item .label { font-size: 0.75rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
         .cor-driver { color: #E8873D !important; }
         .cor-anti   { color: #2E4A60 !important; }
 
-        /* ── BOTÕES ── */
-        .btn-sm, .zoom-btn {
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-            padding: 0.35rem 0.7rem;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.82rem;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-        .btn-sm:hover, .zoom-btn:hover {
-            background: var(--hover-bg);
-            transform: translateY(-1px);
-        }
-        #theme-toggle {
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-            padding: 0.4rem 0.8rem;
-            border-radius: 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        #theme-toggle:hover { background: var(--hover-bg); }
-
-        /* ── TOOLBAR DO DENDROGRAMA ── */
+        /* ── TOOLBAR ── */
         .viz-toolbar {
-            background: var(--bg-secondary);
-            padding: 0.6rem 2rem;
-            display: flex;
-            gap: 1.2rem;
-            align-items: center;
-            flex-wrap: wrap;
-            border-bottom: 1px solid var(--border-color);
-            min-height: 46px;
+            background: var(--bg-secondary); padding: 0.75rem 2rem;
+            display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;
+            border-bottom: 1px solid var(--border-color); min-height: 50px;
         }
-        body.minimized .viz-toolbar { padding: 0.4rem 2rem; }
-        .toolbar-group { display: flex; gap: 0.4rem; align-items: center; }
-        .toolbar-label {
-            font-size: 0.72rem;
-            color: var(--text-tertiary);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+        body.minimized .viz-toolbar { padding: 0.5rem 2rem; }
+        #toolbar-tabela { display: none; }
+        .toolbar-group { display: flex; gap: 0.5rem; align-items: center; }
+        .toolbar-label { font-size: 0.75rem; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .zoom-btn, .btn-sm {
+            background: var(--bg-tertiary); color: var(--text-primary);
+            border: 1px solid var(--border-color); padding: 0.4rem 0.8rem;
+            border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: all 0.2s ease;
         }
-        .zoom-pct, .slider-val {
-            font-size: 0.82rem;
-            color: var(--text-secondary);
-            font-weight: 600;
-            min-width: 40px;
-            text-align: center;
-        }
-        input[type="range"] { width: 90px; cursor: pointer; }
+        .zoom-btn:hover, .btn-sm:hover { background: var(--hover-bg); transform: translateY(-1px); }
+        .zoom-pct, .slider-val { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; min-width: 45px; text-align: center; }
+        input[type="range"] { width: 100px; cursor: pointer; }
         .search-box {
-            background: var(--input-bg);
-            color: var(--text-primary);
-            border: 1px solid var(--input-border);
-            padding: 0.35rem 0.7rem;
-            border-radius: 4px;
-            font-size: 0.82rem;
-            width: 180px;
-            transition: all 0.2s;
+            background: var(--input-bg); color: var(--text-primary);
+            border: 1px solid var(--input-border); padding: 0.4rem 0.8rem;
+            border-radius: 4px; font-size: 0.85rem; width: 200px;
         }
         .search-box:focus { outline: 2px solid #3b82f6; outline-offset: 2px; }
         .search-box::placeholder { color: var(--text-muted); }
-        select.btn-sm { padding: 0.35rem 0.5rem; }
-        .legenda { display: flex; gap: 0.75rem; margin-left: auto; }
-        .legenda-item {
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-            font-size: 0.72rem;
-            color: var(--text-tertiary);
-        }
-        .legenda-dot { width: 9px; height: 9px; border-radius: 50%; }
-
-        /* ── MODO COMPACTO ── */
+        select.btn-sm { padding: 0.4rem 0.6rem; font-size: 0.85rem; }
+        .legenda { display: flex; gap: 1rem; margin-left: auto; }
+        .legenda-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: var(--text-tertiary); }
+        .legenda-dot { width: 10px; height: 10px; border-radius: 50%; }
         .btn-minimize {
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-            padding: 0.35rem 0.7rem;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.82rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            transition: all 0.2s;
+            background: var(--bg-tertiary); color: var(--text-primary);
+            border: 1px solid var(--border-color); padding: 0.4rem 0.8rem;
+            border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+            display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
         }
         .btn-minimize:hover { background: var(--hover-bg); }
-
-        /* ── CONTENT AREA ── */
-        #page-content {
-            width: 100%;
+        #theme-toggle {
+            background: var(--bg-tertiary); color: var(--text-primary);
+            border: 1px solid var(--border-color); padding: 0.5rem 1rem;
+            border-radius: 6px; cursor: pointer; display: flex; align-items: center;
+            gap: 0.5rem; font-weight: 600; transition: all 0.3s ease;
         }
+        #theme-toggle:hover { background: var(--hover-bg); }
 
         /* ── DENDROGRAMA ── */
-        .viz-wrapper {
-            position: sticky;
-            top: 0;
-            height: calc(100vh - 90px);
-            transition: height 0.3s ease;
-        }
+        .viz-wrapper { position: sticky; top: 0; height: calc(100vh - 90px); transition: height 0.3s ease; }
         body.minimized .viz-wrapper { height: calc(100vh - 90px); }
-        .viz-svg-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            overflow: hidden;
-            background: var(--svg-bg);
-            transition: background-color 0.3s ease;
-        }
-        .viz-placeholder {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: var(--text-muted);
-            font-size: 1rem;
-            text-align: center;
-        }
+        .viz-svg-container { width: 100%; height: 100%; position: relative; overflow: hidden; background: var(--svg-bg); }
+        .viz-placeholder { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: var(--text-muted); font-size: 1rem; text-align: center; }
         :root[data-theme="dark"] .node-text-line { fill: #e2e8f0 !important; }
         :root[data-theme="light"] .node-text-line { fill: #0f172a !important; }
         .node.highlighted circle { stroke: #fbbf24; stroke-width: 3; }
         .node.dimmed { opacity: 0.3; }
 
+        /* ── TABELA ── */
+        #tab-tabela { display: none; height: calc(100vh - 90px); overflow: hidden; flex-direction: column; }
+        #tab-tabela.ativo { display: flex; }
+        .tabela-toolbar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.6rem 1.5rem; background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.5rem; flex-shrink: 0;
+        }
+        .tabela-info { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-tertiary); }
+        .tabela-info strong { color: var(--text-primary); font-weight: 700; }
+        .tabela-scroll { overflow: auto; flex: 1; }
+        table#tbl { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        table#tbl thead { position: sticky; top: 0; z-index: 5; }
+        table#tbl thead tr:first-child th {
+            background: var(--bg-secondary); padding: 0.6rem 0.75rem;
+            text-align: left; font-size: 0.72rem; font-weight: 600;
+            color: var(--text-tertiary); border-bottom: 1px solid var(--border-color);
+            white-space: nowrap; letter-spacing: 0.04em;
+        }
+        table#tbl thead tr:last-child td {
+            background: var(--bg-primary); padding: 0.25rem 0.4rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+        table#tbl thead tr:last-child td select {
+            width: 100%; background: var(--input-bg); color: var(--text-primary);
+            border: 1px solid var(--input-border); border-radius: 4px;
+            padding: 0.2rem 0.35rem; font-size: 0.72rem; cursor: pointer;
+        }
+        table#tbl tbody tr { transition: background 0.1s; }
+        table#tbl tbody tr:nth-child(even) { background: var(--bg-secondary); }
+        table#tbl tbody tr:hover { background: var(--hover-bg); }
+        table#tbl tbody td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border-color); color: var(--text-primary); font-size: 0.82rem; }
+        .tag-driver { color: #E8873D; font-weight: 600; }
+        .tag-anti   { color: #5A8AB8; font-weight: 600; }
+        .tag-neutro { color: #6B7F8C; font-weight: 600; }
+
         /* ── TOOLTIP ── */
         .tooltip {
-            position: fixed;
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 0.75rem;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-            z-index: 9999;
-            max-width: 380px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            position: fixed; background: var(--bg-secondary); color: var(--text-primary);
+            border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem;
+            pointer-events: none; opacity: 0; transition: opacity 0.2s ease;
+            z-index: 9999; max-width: 380px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
-        .t-title {
-            font-weight: 700;
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 0.4rem;
-        }
+        .t-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.4rem; }
         .t-row { font-size: 0.8rem; margin: 0.3rem 0; color: var(--text-secondary); }
         .t-row em { font-style: normal; font-weight: 600; color: var(--text-primary); }
-        .t-hint {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            margin-top: 0.5rem;
-            font-style: italic;
-            border-top: 1px solid var(--border-color);
-            padding-top: 0.4rem;
-        }
+        .t-hint { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.5rem; font-style: italic; border-top: 1px solid var(--border-color); padding-top: 0.4rem; }
 
         /* ── LOADING ── */
         .loading-overlay {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(15,23,42,0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: 1rem;
-            z-index: 10000;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15,23,42,0.9); display: none;
+            align-items: center; justify-content: center; flex-direction: column; gap: 1rem; z-index: 10000;
         }
         :root[data-theme="light"] .loading-overlay { background: rgba(255,255,255,0.9); }
-        .loading-spinner {
-            width: 50px; height: 50px;
-            border: 4px solid var(--border-color);
-            border-top-color: #3b82f6;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
+        .loading-spinner { width: 50px; height: 50px; border: 4px solid var(--border-color); border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; }
         .loading-text { color: var(--text-primary); font-size: 1rem; font-weight: 500; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* ── LEGENDAS FLUTUANTES ── */
-        .legend-expanded {
-            position: fixed;
-            bottom: 1rem; right: 1rem;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 1rem;
-            min-width: 250px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            z-index: 1000;
-            cursor: grab;
-            user-select: none;
-        }
-        .legend-expanded:active { cursor: grabbing; }
-        .legend-expanded h4 { margin: 0 0 0.75rem 0; font-size: 0.9rem; }
-
-        .legend-contextual {
-            position: fixed;
-            bottom: 13rem; right: 1rem;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 12px 16px;
-            min-width: 250px;
-            max-width: 340px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            z-index: 1000;
-            cursor: grab;
-            user-select: none;
-        }
-        .legend-contextual:active { cursor: grabbing; }
-        .legend-contextual-header {
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--text-tertiary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--border-color);
-        }
-        .ctx-row {
-            font-size: 12px;
-            color: var(--text-primary);
-            padding: 3px 0;
-            line-height: 1.4;
-            word-break: break-word;
-        }
-
         /* ── OVERLAY FILTROS ── */
         .filters-overlay {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(4px);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            opacity: 0;
-            transition: opacity 0.3s ease;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+            display: none; align-items: center; justify-content: center; z-index: 9999; opacity: 0; transition: opacity 0.3s ease;
         }
         .filters-overlay.active { display: flex; opacity: 1; }
         .filters-panel {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 2rem;
-            max-width: 600px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            background: var(--bg-secondary); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 2rem; max-width: 600px; width: 90%;
+            max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
         }
         .filters-panel h3 { margin-bottom: 1.5rem; font-size: 1.2rem; }
         .filters-panel .section-group { margin-bottom: 1.5rem; }
-        .filters-panel .section-group h4 {
-            font-size: 0.85rem;
-            color: var(--text-tertiary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.75rem;
-            font-weight: 600;
-        }
-        .filters-panel .close-btn {
-            width: 100%;
-            margin-top: 1.5rem;
-            padding: 0.75rem;
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: 600;
-        }
+        .filters-panel .section-group h4 { font-size: 0.9rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; font-weight: 600; }
+        .filters-panel .close-btn { width: 100%; margin-top: 1.5rem; padding: 0.75rem; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
 
-        /* ── TOOLBAR TABELA (só aparece na aba tabela) ── */
-        #toolbar-dendrograma { display: block; }
-        #toolbar-tabela      { display: none;  }
+        /* ── LEGENDAS FLUTUANTES ── */
+        .legend-float {
+            position: fixed;
+            background: var(--bg-secondary); color: var(--text-primary);
+            border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000;
+            cursor: grab; user-select: none;
+        }
+        .legend-float:active { cursor: grabbing; }
+
+        /* Sistema de Cores */
+        #legend-cores { bottom: 1rem; right: 1rem; min-width: 250px; }
+        #legend-cores h4 { margin: 0 0 0.75rem 0; font-size: 0.9rem; }
+
+        /* Contexto da Análise */
+        #legend-contexto { bottom: 13rem; right: 1rem; min-width: 250px; max-width: 340px; padding: 12px 16px; }
+        .legend-contexto-header {
+            font-size: 11px; font-weight: 600; color: var(--text-tertiary);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);
+        }
+        .ctx-row { font-size: 12px; color: var(--text-primary); padding: 3px 0; line-height: 1.4; word-break: break-word; }
     </style>
 </head>
 <body>
 
-<!-- ── HEADER ── -->
+<!-- HEADER -->
 <header class="header">
     <h1>NEXAS ANALYTICS</h1>
     <div class="header-right">
         <select id="onda-select"><option value="">Carregando ondas...</option></select>
         <button class="btn-minimize" id="btn-toggle-compact">
-            <span id="compact-icon">▲</span>
-            <span id="compact-text">Compacto</span>
+            <span id="compact-icon">▲</span><span id="compact-text">Compacto</span>
         </button>
         <button id="theme-toggle">
             <span id="toggle-icon">☀️</span>
@@ -495,18 +274,17 @@
     </div>
 </header>
 
-<!-- ── NAVBAR DE ABAS ── -->
+<!-- ABAS -->
 <nav class="tab-nav">
     <button class="tab-btn active" data-tab="dendrograma">🌳 Dendrograma</button>
     <button class="tab-btn" data-tab="tabela">📋 Tabela</button>
 </nav>
 
-<!-- ── CONTROLES COMPARTILHADOS ── -->
-<div class="controls-wrapper" id="controls-wrapper">
+<!-- CONTROLES COMPARTILHADOS -->
+<div class="controls-wrapper">
     <div class="section-collapsible" id="section-contexto">
         <div class="section-header" onclick="toggleSection('contexto')">
-            <span class="section-title">Contexto</span>
-            <span class="section-toggle">▼</span>
+            <span class="section-title">Contexto</span><span class="section-toggle">▼</span>
         </div>
         <div class="section-content">
             <div class="contexto" id="contexto">Selecione uma onda e um cruzamento para iniciar a análise.</div>
@@ -514,8 +292,7 @@
     </div>
     <div class="section-collapsible" id="section-filtros">
         <div class="section-header" onclick="toggleSection('filtros')">
-            <span class="section-title">Filtros</span>
-            <span class="section-toggle">▼</span>
+            <span class="section-title">Filtros</span><span class="section-toggle">▼</span>
         </div>
         <div class="section-content">
             <div class="filtros">
@@ -532,8 +309,7 @@
     </div>
     <div class="section-collapsible" id="section-metricas">
         <div class="section-header" onclick="toggleSection('metricas')">
-            <span class="section-title">Métricas</span>
-            <span class="section-toggle">▼</span>
+            <span class="section-title">Métricas</span><span class="section-toggle">▼</span>
         </div>
         <div class="section-content">
             <div class="metricas">
@@ -546,7 +322,7 @@
     </div>
 </div>
 
-<!-- ── TOOLBAR DENDROGRAMA ── -->
+<!-- TOOLBAR DENDROGRAMA -->
 <div class="viz-toolbar" id="toolbar-dendrograma">
     <div class="toolbar-group">
         <span class="toolbar-label">Zoom</span>
@@ -594,12 +370,42 @@
     </div>
 </div>
 
-<!-- ── CONTENT AREA ── -->
-<div id="page-content">
-    <!-- Conteúdo injetado dinamicamente pela aba ativa -->
+<!-- TOOLBAR TABELA -->
+<div class="viz-toolbar" id="toolbar-tabela">
+    <div class="tabela-info">
+        <span>Exibindo</span><strong id="tbl-count">—</strong>
+        <span>de</span><strong id="tbl-total">—</strong><span>registros</span>
+        <button class="btn-sm" id="btn-limpar-tbl" style="display:none;margin-left:0.5rem">✕ Limpar filtros</button>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:0.5rem">
+        <button class="btn-sm" id="btn-dl-csv">⬇ CSV</button>
+        <button class="btn-sm" id="btn-dl-xlsx">⬇ Excel</button>
+    </div>
 </div>
 
-<!-- ── ELEMENTOS GLOBAIS ── -->
+<!-- DENDROGRAMA -->
+<div id="tab-dendrograma">
+    <div class="viz-wrapper">
+        <div class="viz-svg-container" id="svg-container">
+            <div class="viz-placeholder">Dendrograma aparecerá aqui após selecionar o cruzamento</div>
+        </div>
+    </div>
+</div>
+
+<!-- TABELA -->
+<div id="tab-tabela">
+    <div class="tabela-scroll">
+        <table id="tbl">
+            <thead>
+                <tr id="tbl-head"></tr>
+                <tr id="tbl-filters"></tr>
+            </thead>
+            <tbody id="tbl-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- OVERLAY FILTROS -->
 <div class="filters-overlay" id="filters-overlay">
     <div class="filters-panel">
         <h3>⚙ Controles e Filtros</h3>
@@ -631,19 +437,22 @@
     </div>
 </div>
 
+<!-- LOADING -->
 <div class="loading-overlay" id="loading-overlay">
     <div class="loading-spinner"></div>
     <div class="loading-text" id="loading-text">Carregando...</div>
 </div>
 
-<div class="legend-contextual" id="legend-contextual">
-    <div class="legend-contextual-header">📊 Contexto da Análise</div>
+<!-- LEGENDA CONTEXTO DA ANÁLISE (flutuante, arrastável) -->
+<div class="legend-float" id="legend-contexto">
+    <div class="legend-contexto-header">📊 Contexto da Análise</div>
     <div id="ctx-assunto" class="ctx-row"></div>
     <div id="ctx-categoria" class="ctx-row" style="display:none"></div>
     <div id="ctx-pergunta" class="ctx-row"></div>
 </div>
 
-<div class="legend-expanded" id="legend-expanded">
+<!-- LEGENDA SISTEMA DE CORES (flutuante, arrastável) -->
+<div class="legend-float" id="legend-cores">
     <h4>📊 Sistema de Cores</h4>
     <div style="margin:10px 0">
         <strong style="color:var(--text-tertiary)">Pontos (Tipo):</strong>
@@ -664,139 +473,107 @@
 
 <div class="tooltip" id="tooltip"></div>
 
-<script src="js/dendrograma.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════
-// SHELL — roteamento entre abas e filtros globais
+// STATE GLOBAL
 // ═══════════════════════════════════════════════════════════
+const state = {
+    onda: null, assunto: null, pergunta: null,
+    categoria_coluna: null, direcao: null,
+    treeData: null, tabelaRows: null,
+    nodeYSpacing: 26, nodeXSpacing: 220, zoomLevel: 1,
+    agregacao: 'weighted_mean', isCompactMode: false,
+    filtrosLinha: {}
+};
 
-let activeTab = 'dendrograma';
+const ORDEM_NIVEIS = ['assunto_linha','pergunta_linha','categoria_linha'];
+const NIVEL_CAMPO  = { assunto_linha:'assunto_linha', pergunta_linha:'pergunta_linha', categoria_linha:'categoria_linha' };
 
-// ── Roteamento de abas ──
-function switchTab(tabName) {
-    activeTab = tabName;
+let svg, g, treemap, root, diagonal, nodeI = 0;
+const tipEl      = document.getElementById('tooltip');
+const loadingEl  = document.getElementById('loading-overlay');
+const loadingTxt = document.getElementById('loading-text');
 
-    // Atualiza botões
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.tab === tabName);
-    });
+// ═══════════════════════════════════════════════════════════
+// ABAS
+// ═══════════════════════════════════════════════════════════
+let abaAtiva = 'dendrograma';
 
-    // Mostra/esconde toolbar do dendrograma
-    document.getElementById('toolbar-dendrograma').style.display =
-        tabName === 'dendrograma' ? 'flex' : 'none';
-
-    // Mostra/esconde legendas flutuantes
-    const showLegends = tabName === 'dendrograma';
-    document.getElementById('legend-expanded').style.display = showLegends ? 'block' : 'none';
-    document.getElementById('legend-contextual').style.display = showLegends ? 'block' : 'none';
-
-    // Carrega conteúdo da aba
-    const content = document.getElementById('page-content');
-    if (tabName === 'dendrograma') {
-        content.innerHTML = `
-            <div class="viz-wrapper">
-                <div class="viz-svg-container" id="svg-container">
-                    <div class="viz-placeholder">Dendrograma aparecerá aqui após selecionar o cruzamento</div>
-                </div>
-            </div>`;
-        initDendrograma();
-        if (NexasState.isReady()) loadData();
-     } else if (tabName === 'tabela') {
-        fetch('/pages/tabela.html')
-            .then(r => r.text())
-            .then(html => {
-                content.innerHTML = html;
-                // Re-executa scripts injetados via innerHTML
-                content.querySelectorAll('script').forEach(oldScript => {
-                    const newScript = document.createElement('script');
-                    newScript.textContent = oldScript.textContent;
-                    document.body.appendChild(newScript);
-                    oldScript.remove();
-                });
-            });
-    }
+function switchTab(nome) {
+    abaAtiva = nome;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === nome));
+    document.getElementById('tab-dendrograma').style.display = nome === 'dendrograma' ? 'block' : 'none';
+    document.getElementById('tab-tabela').classList.toggle('ativo', nome === 'tabela');
+    document.getElementById('toolbar-dendrograma').style.display = nome === 'dendrograma' ? 'flex' : 'none';
+    document.getElementById('toolbar-tabela').style.display      = nome === 'tabela'      ? 'flex' : 'none';
+    // Legendas só visíveis no dendrograma
+    const showLeg = nome === 'dendrograma';
+    document.getElementById('legend-cores').style.display    = showLeg ? 'block' : 'none';
+    document.getElementById('legend-contexto').style.display = showLeg ? 'block' : 'none';
+    if (nome === 'tabela' && state.tabelaRows) renderTabela();
+    if (nome === 'dendrograma' && root) { aplicarDimFiltros(); setTimeout(resizeDendrogram, 50); }
 }
 
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-});
+document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
-// ── Filtros globais ──
-function toggleSection(name) {
-    document.getElementById(`section-${name}`)?.classList.toggle('section-collapsed');
-}
-
-function toggleCompactMode() {
-    document.body.classList.toggle('minimized');
-    const isMin = document.body.classList.contains('minimized');
-    document.getElementById('compact-icon').textContent = isMin ? '▼' : '▲';
-    document.getElementById('compact-text').textContent = isMin ? 'Expandir' : 'Compacto';
-    setTimeout(resizeDendrogram, 300);
-}
-
-function openFiltersOverlay() {
-    document.getElementById('filters-overlay').classList.add('active');
-    document.getElementById('overlay-contexto').textContent = document.getElementById('contexto').textContent;
-    document.getElementById('overlay-total').textContent   = document.getElementById('met-total').textContent;
-    document.getElementById('overlay-drivers').textContent = document.getElementById('met-drivers').textContent;
-    document.getElementById('overlay-anti').textContent    = document.getElementById('met-anti').textContent;
-}
-
-function closeFiltersOverlay() {
-    document.getElementById('filters-overlay').classList.remove('active');
-}
-
-function showLoading(text = 'Carregando...') {
-    document.getElementById('loading-text').textContent = text;
-    document.getElementById('loading-overlay').style.display = 'flex';
-}
-
-function hideLoading() {
-    document.getElementById('loading-overlay').style.display = 'none';
-}
-
-function setContexto(onda, assunto, pergunta, direcao) {
-    let txt = `${onda} → ${assunto} | ${pergunta}`;
-    if (direcao) txt += ` [${direcao === 'DRIVER' ? 'Só Drivers' : 'Só Anti-drivers'}]`;
-    document.getElementById('contexto').textContent = txt;
-}
-
-function updateMetricas(data) {
-    if (!data?.tree) {
-        ['met-total','met-drivers','met-anti','met-score'].forEach(id => {
-            document.getElementById(id).textContent = '—';
-        });
-        return;
-    }
-    let total = 0, drivers = 0, anti = 0, maxScore = -Infinity;
-    function traverse(node) {
-        if (node.leaf && node.metrics) {
-            total++;
-            if (node.metrics.direcao === 'DRIVER') drivers++;
-            else if (node.metrics.direcao === 'ANTI-DRIVER') anti++;
-            const s = Math.abs(node.metrics.score_nexas || 0);
-            if (s > maxScore) maxScore = s;
+// ═══════════════════════════════════════════════════════════
+// SISTEMA DE CORES
+// ═══════════════════════════════════════════════════════════
+const COLOR_STOPS = [
+    {score:-2000,color:'#2E4A60'},{score:-1000,color:'#4A7299'},
+    {score:-200, color:'#5A8AB8'},{score:-30,  color:'#6B7F8C'},
+    {score:30,   color:'#9BB8A8'},{score:200,  color:'#D4A06A'},
+    {score:1000, color:'#E8873D'},{score:2000, color:'#E8873D'}
+];
+function hexToRgb(h){return{r:parseInt(h.slice(1,3),16),g:parseInt(h.slice(3,5),16),b:parseInt(h.slice(5,7),16)};}
+function rgbToHex(r,g,b){return'#'+[r,g,b].map(x=>{const h=Math.round(x).toString(16);return h.length===1?'0'+h:h;}).join('');}
+function interpolateColor(score){
+    for(let i=0;i<COLOR_STOPS.length-1;i++){
+        const s1=COLOR_STOPS[i],s2=COLOR_STOPS[i+1];
+        if(score>=s1.score&&score<=s2.score){
+            const t=(score-s1.score)/(s2.score-s1.score);
+            const c1=hexToRgb(s1.color),c2=hexToRgb(s2.color);
+            return rgbToHex(c1.r+t*(c2.r-c1.r),c1.g+t*(c2.g-c1.g),c1.b+t*(c2.b-c1.b));
         }
-        node.children?.forEach(traverse);
     }
-    traverse(data.tree);
-    document.getElementById('met-total').textContent   = total;
-    document.getElementById('met-drivers').textContent = drivers;
-    document.getElementById('met-anti').textContent    = anti;
-    document.getElementById('met-score').textContent   = maxScore === -Infinity ? '—' : `+${maxScore.toFixed(0)}`;
+    return score<COLOR_STOPS[0].score?COLOR_STOPS[0].color:COLOR_STOPS[COLOR_STOPS.length-1].color;
+}
+function getTextColor(){return document.documentElement.getAttribute('data-theme')==='dark'?'#e2e8f0':'#0f172a';}
+function getNodeStroke(){return document.documentElement.getAttribute('data-theme')==='dark'?'#1e293b':'#e2e8f0';}
+function getNodeScore(d){
+    if(!d?.data?.metrics)return 0;
+    const m=d.data.metrics;
+    if(d.data.leaf)return m.score_nexas||0;
+    return{mean:m.avg_score,median:m.median_score||m.avg_score,max:m.max_score||m.avg_score,weighted_mean:m.avg_score}[state.agregacao]||m.avg_score||0;
+}
+function nodeColor(d){
+    if(!d?.data?.metrics)return'#6B7F8C';
+    if(d.data.leaf){const dir=d.data.metrics.direcao;if(dir==='DRIVER')return'#E8873D';if(dir==='ANTI-DRIVER')return'#2E4A60';return'#6B7F8C';}
+    return interpolateColor(getNodeScore(d));
+}
+function linkColor(d){return interpolateColor(getNodeScore(d));}
+function getAgregacaoLabel(){return{weighted_mean:'Ponderada',mean:'Simples',median:'Mediana',max:'Máximo'}[state.agregacao]||'Ponderada';}
+function wrapText(text,max=35){
+    if(!text||text.length<=max)return[text||''];
+    const words=text.split(' '),lines=[];let cur='';
+    for(const w of words){const t=cur?`${cur} ${w}`:w;if(t.length<=max)cur=t;else{if(cur)lines.push(cur);cur=w;}}
+    if(cur)lines.push(cur);return lines;
 }
 
+// ═══════════════════════════════════════════════════════════
+// LEGENDA CONTEXTUAL
+// ═══════════════════════════════════════════════════════════
 function updateLegendaContextual() {
     const ctxAssunto   = document.getElementById('ctx-assunto');
     const ctxCategoria = document.getElementById('ctx-categoria');
     const ctxPergunta  = document.getElementById('ctx-pergunta');
     if (ctxAssunto)
-        ctxAssunto.textContent = NexasState.assunto
-            ? `Sua análise está considerando o contexto que parte do assunto: "${NexasState.assunto}"`
+        ctxAssunto.textContent = state.assunto
+            ? `Sua análise está considerando o contexto que parte do assunto: "${state.assunto}"`
             : '';
     if (ctxCategoria) {
-        if (NexasState.categoria_coluna) {
-            ctxCategoria.textContent = `Você está buscando entender as variáveis que mais se associam com quem respondeu: "${NexasState.categoria_coluna}"`;
+        if (state.categoria_coluna) {
+            ctxCategoria.textContent = `Você está buscando entender as variáveis que mais se associam com quem respondeu: "${state.categoria_coluna}"`;
             ctxCategoria.style.display = 'block';
         } else {
             ctxCategoria.textContent = '';
@@ -804,236 +581,563 @@ function updateLegendaContextual() {
         }
     }
     if (ctxPergunta)
-        ctxPergunta.textContent = NexasState.pergunta
-            ? `Especificamente em: "${NexasState.pergunta}"`
+        ctxPergunta.textContent = state.pergunta
+            ? `Especificamente em: "${state.pergunta}"`
             : '';
 }
 
-// ── API calls dos filtros ──
+// ═══════════════════════════════════════════════════════════
+// FILTROS DE LINHA
+// ═══════════════════════════════════════════════════════════
+function setFiltroLinha(campo, valor) {
+    state.filtrosLinha[campo] = valor;
+    const idx = ORDEM_NIVEIS.indexOf(campo);
+    ORDEM_NIVEIS.slice(idx + 1).forEach(c => delete state.filtrosLinha[c]);
+    _onFiltrosLinhaChange();
+}
+function removeFiltroLinha(campo) {
+    const idx = ORDEM_NIVEIS.indexOf(campo);
+    ORDEM_NIVEIS.slice(idx).forEach(c => delete state.filtrosLinha[c]);
+    _onFiltrosLinhaChange();
+}
+function clearFiltrosLinha() {
+    state.filtrosLinha = {};
+    _onFiltrosLinhaChange();
+}
+function temFiltroLinha() { return Object.keys(state.filtrosLinha).length > 0; }
+function _onFiltrosLinhaChange() {
+    if (abaAtiva === 'dendrograma' && root) setTimeout(aplicarDimFiltros, 50);
+    if (abaAtiva === 'tabela' && state.tabelaRows) renderTabela();
+    _sincDropdownsTabela();
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOOLTIP
+// ═══════════════════════════════════════════════════════════
+function showTip(ev, d) {
+    if (!d?.data) return;
+    const m = d.data.metrics; if (!m) return;
+    const score = getNodeScore(d);
+    const scoreColor = d.data.leaf ? nodeColor(d) : interpolateColor(score);
+    let h = `<div class="t-title">${d.data.name||'Sem nome'}</div>`;
+    if (d.data.leaf) {
+        h+=`<div class="t-row">Score Nexas: <em style="color:${scoreColor};font-weight:bold">${score.toFixed(2)}</em></div>`;
+        h+=`<div class="t-row">Direção: <em style="color:${scoreColor};font-weight:bold">${m.direcao||'N/A'}</em></div>`;
+        h+=`<div class="t-row">Categoria: <em>${m.categoria_direcao||'N/A'}</em></div>`;
+        h+=`<div class="t-row">Lift: <em>${(m.lift||0).toFixed(3)}</em></div>`;
+        h+=`<div class="t-row">Relevância: <em>${((m.relevancia||0)*100).toFixed(1)}%</em></div>`;
+        if (m.per_relativo!=null) h+=`<div class="t-row">% Relativo: <em>${m.per_relativo.toFixed(1)}%</em></div>`;
+        if (m.base_comum) h+=`<div class="t-row">Base comum: <em>${m.base_comum}</em></div>`;
+    } else {
+        h+=`<div class="t-row">Score Médio (${getAgregacaoLabel()}): <em style="color:${scoreColor};font-weight:bold">${score.toFixed(2)}</em></div>`;
+        if (m.min_score!=null&&m.max_score!=null) h+=`<div class="t-row">Range: <em>${m.min_score.toFixed(0)} a ${m.max_score.toFixed(0)}</em></div>`;
+        if (m.composition) {
+            h+=`<div class="t-row" style="margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border-color)"><strong>Composição:</strong></div>`;
+            if (m.composition.drivers){const dr=m.composition.drivers;h+=`<div class="t-row">• Drivers: <em>${dr.percentage}% (${dr.count})</em></div><div class="t-row" style="margin-left:1rem">média <em style="color:#E8873D">+${dr.avg.toFixed(0)}</em>, max <em>+${dr.max.toFixed(0)}</em></div>`;}
+            if (m.composition.anti_drivers){const a=m.composition.anti_drivers;h+=`<div class="t-row">• Anti-drivers: <em>${a.percentage}% (${a.count})</em></div><div class="t-row" style="margin-left:1rem">média <em style="color:#2E4A60">${a.avg.toFixed(0)}</em>, min <em>${a.min.toFixed(0)}</em></div>`;}
+        }
+        h+=`<div class="t-row">Relevância média: <em>${((m.avg_relevancia||0)*100).toFixed(1)}%</em></div>`;
+        h+=`<div class="t-row">Associações: <em>${m.count||0}</em></div>`;
+        h+=`<div class="t-hint">Clique para expandir / colapsar</div>`;
+    }
+    tipEl.innerHTML = h; tipEl.style.opacity = '1';
+    tipEl.style.left = `${ev.clientX+16}px`; tipEl.style.top = `${ev.clientY-10}px`;
+}
+function hideTip() { tipEl.style.opacity = '0'; }
+
+// ═══════════════════════════════════════════════════════════
+// DENDROGRAMA
+// ═══════════════════════════════════════════════════════════
+function renderTree(data) {
+    if (!data) return;
+    const container = document.getElementById('svg-container');
+    container.innerHTML = '';
+    const width = container.clientWidth, height = container.clientHeight;
+    svg = d3.select('#svg-container').append('svg').attr('width',width).attr('height',height);
+    g = svg.append('g');
+    const zoom = d3.zoom().scaleExtent([0.1,10]).on('zoom', ev => {
+        g.attr('transform',ev.transform); state.zoomLevel=ev.transform.k;
+        document.getElementById('zoom-pct').textContent = Math.round(ev.transform.k*100)+'%';
+    });
+    svg.call(zoom);
+    treemap = d3.tree().nodeSize([state.nodeYSpacing, state.nodeXSpacing]);
+    root = d3.hierarchy(data);
+    root.x0 = height/2; root.y0 = 0;
+    root.children?.forEach(collapse);
+    update(root);
+    svg.call(zoom.transform, d3.zoomIdentity.translate(100,height/2).scale(1));
+    if (temFiltroLinha()) setTimeout(aplicarDimFiltros, 600);
+}
+
+function update(source) {
+    const treeData = treemap(root);
+    const nodes = treeData.descendants(), links = treeData.links();
+    nodes.forEach(d => { d.y = d.depth * state.nodeXSpacing; });
+    const node = g.selectAll('g.node').data(nodes, d => d.id||(d.id=++nodeI));
+    const nodeEnter = node.enter().append('g').attr('class','node')
+        .attr('transform', d=>`translate(${source.y0},${source.x0})`)
+        .on('click', clickNodo)
+        .on('mouseover', showTip)
+        .on('mousemove', ev => { tipEl.style.left=`${ev.clientX+16}px`; tipEl.style.top=`${ev.clientY-10}px`; })
+        .on('mouseout', hideTip);
+    nodeEnter.append('circle').attr('r',5).style('fill',d=>nodeColor(d)).style('stroke',getNodeStroke()).style('stroke-width','2px');
+    nodeEnter.append('text').attr('class','node-text').attr('dy','.35em')
+        .attr('x', d=>d.children||d._children?-10:10)
+        .attr('text-anchor', d=>d.children||d._children?'end':'start')
+        .style('fill',getTextColor()).style('font-size','11px').style('font-weight','500')
+        .each(function(d) {
+            const lines = wrapText(d.data.name);
+            const el = d3.select(this);
+            lines.forEach((line,i) => el.append('tspan').attr('class','node-text-line')
+                .attr('x',d.children||d._children?-10:10).attr('dy',i===0?0:'1.1em').text(line).style('fill',getTextColor()));
+        });
+    const nodeUpdate = nodeEnter.merge(node);
+    nodeUpdate.transition().duration(500).attr('transform',d=>`translate(${d.y},${d.x})`);
+    nodeUpdate.select('circle').style('fill',d=>nodeColor(d)).style('stroke',getNodeStroke()).attr('r',5);
+    node.exit().transition().duration(500).attr('transform',d=>`translate(${source.y},${source.x})`).remove().select('circle').attr('r',0);
+    diagonal = d3.linkHorizontal().x(d=>d.y).y(d=>d.x);
+    const link = g.selectAll('path.link').data(links, d=>d.target.id);
+    const linkEnter = link.enter().insert('path','g').attr('class','link')
+        .attr('d', d=>{const o={x:source.x0,y:source.y0};return diagonal({source:o,target:o});})
+        .style('fill','none').style('stroke',d=>linkColor(d.target))
+        .style('stroke-width',d=>Math.max(1,Math.min(4,Math.abs(getNodeScore(d.target))/200))).style('opacity',0.6);
+    linkEnter.merge(link).transition().duration(500).attr('d',diagonal)
+        .style('stroke',d=>linkColor(d.target))
+        .style('stroke-width',d=>Math.max(1,Math.min(4,Math.abs(getNodeScore(d.target))/200)));
+    link.exit().transition().duration(500).attr('d',d=>{const o={x:source.x,y:source.y};return diagonal({source:o,target:o});}).remove();
+    nodes.forEach(d => { d.x0=d.x; d.y0=d.y; });
+}
+
+function clickNodo(ev, d) {
+    const expandindo = !d.children && !!d._children;
+    if (d.children) { d._children=d.children; d.children=null; }
+    else { d.children=d._children; d._children=null; }
+    update(d);
+    const campo = NIVEL_CAMPO[d.data.nivel];
+    if (campo) { if (expandindo) setFiltroLinha(campo, d.data.name); else removeFiltroLinha(campo); }
+}
+
+function collapse(d) { if (d.children) { d._children=d.children; d._children.forEach(collapse); d.children=null; } }
+function expand(d)   { if (d._children) { d.children=d._children; d.children.forEach(expand); d._children=null; } }
+
+function aplicarDimFiltros() {
+    if (!root||!g) return;
+    if (!temFiltroLinha()) { g.selectAll('.node').classed('dimmed',false).classed('highlighted',false); return; }
+    const filtros = state.filtrosLinha;
+    const matches = new Set();
+    root.descendants().forEach(d => {
+        if (!d.data.leaf) return;
+        let ok = true;
+        Object.entries(filtros).forEach(([campo,valor]) => {
+            if (!valor) return;
+            let found=false, cur=d;
+            while (cur) { if (NIVEL_CAMPO[cur.data.nivel]===campo&&cur.data.name===valor){found=true;break;} cur=cur.parent; }
+            if (!found) ok=false;
+        });
+        if (ok) { let cur=d; while(cur){matches.add(cur);cur=cur.parent;} }
+    });
+    g.selectAll('.node').each(function(d) {
+        d3.select(this).classed('highlighted',matches.has(d)&&d.data.leaf).classed('dimmed',!matches.has(d));
+    });
+}
+
+// ═══════════════════════════════════════════════════════════
+// TABELA
+// ═══════════════════════════════════════════════════════════
+const TBL_COLUNAS = [
+    {key:'assunto_linha',       label:'ASSUNTO LINHA',      filtravel:true,  wrap:false},
+    {key:'pergunta_linha',      label:'PERGUNTA LINHA',     filtravel:true,  wrap:true},
+    {key:'categoria_linha',     label:'CATEGORIA LINHA',    filtravel:true,  wrap:false},
+    {key:'lift',                label:'LIFT',               filtravel:false, fmt:v=>v!=null?v.toFixed(3):'—'},
+    {key:'score_absoluto',      label:'SCORE ABS.',         filtravel:false, fmt:v=>v!=null?v.toFixed(2):'—'},
+    {key:'direcao',             label:'DIREÇÃO',            filtravel:true,  cls:v=>v==='DRIVER'?'tag-driver':v==='ANTI-DRIVER'?'tag-anti':'tag-neutro'},
+    {key:'categoria_direcao',   label:'CAT. DIREÇÃO',       filtravel:true,  wrap:false},
+    {key:'rank_global',         label:'RANK',               filtravel:false},
+    {key:'percentil_relevancia',label:'PERCENTIL',          filtravel:false, fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—'},
+    {key:'ranking_final',       label:'RANKING FINAL',      filtravel:true,  wrap:false},
+    {key:'per_relativo',        label:'% RELATIVO',         filtravel:false, fmt:v=>v!=null?v.toFixed(1)+'%':'—'},
+];
+
+const _tblDropdowns = {};
+let _tblIgnorarChange = false;
+
+function iniciarTabela() {
+    const headRow = document.getElementById('tbl-head');
+    const filtRow = document.getElementById('tbl-filters');
+    headRow.innerHTML = ''; filtRow.innerHTML = '';
+    TBL_COLUNAS.forEach(col => {
+        const th = document.createElement('th'); th.textContent = col.label; headRow.appendChild(th);
+        const td = document.createElement('td');
+        if (col.filtravel) {
+            const sel = document.createElement('select');
+            sel.innerHTML = '<option value="">Todos</option>';
+            sel.addEventListener('change', () => {
+                if (_tblIgnorarChange) return;
+                const val = sel.value || null;
+                if (val) setFiltroLinha(col.key, val);
+                else removeFiltroLinha(col.key);
+            });
+            _tblDropdowns[col.key] = sel;
+            td.appendChild(sel);
+        }
+        filtRow.appendChild(td);
+    });
+}
+
+function _sincDropdownsTabela() {
+    if (!state.tabelaRows) return;
+    _tblIgnorarChange = true;
+    const filtros = state.filtrosLinha;
+    TBL_COLUNAS.filter(c=>c.filtravel).forEach(col => {
+        const sel = _tblDropdowns[col.key]; if (!sel) return;
+        const valorAtual = filtros[col.key] || '';
+        const rowsDisp = state.tabelaRows.filter(row =>
+            Object.entries(filtros).every(([campo,valor]) => campo===col.key||!valor||String(row[campo])===String(valor))
+        );
+        const valores = [...new Set(rowsDisp.map(r=>r[col.key]).filter(v=>v!=null))].sort();
+        sel.innerHTML = '<option value="">Todos</option>';
+        valores.forEach(v => { const o=document.createElement('option');o.value=v;o.textContent=v;if(String(v)===String(valorAtual))o.selected=true;sel.appendChild(o); });
+    });
+    _tblIgnorarChange = false;
+}
+
+function _filtrarRowsTabela() {
+    if (!state.tabelaRows) return [];
+    const filtros = state.filtrosLinha;
+    return state.tabelaRows.filter(row =>
+        Object.entries(filtros).every(([campo,valor]) => !valor||String(row[campo])===String(valor))
+    );
+}
+
+function renderTabela() {
+    if (!state.tabelaRows) return;
+    _sincDropdownsTabela();
+    const rows = _filtrarRowsTabela();
+    const tbody = document.getElementById('tbl-body');
+    tbody.innerHTML = '';
+    rows.forEach((row) => {
+        const tr = document.createElement('tr');
+        TBL_COLUNAS.forEach(col => {
+            const td = document.createElement('td');
+            const val = row[col.key];
+            td.textContent = col.fmt ? col.fmt(val) : (val!=null?String(val):'—');
+            if (col.wrap) td.style.whiteSpace = 'normal'; else td.style.whiteSpace = 'nowrap';
+            if (col.cls) td.className = col.cls(val);
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+    document.getElementById('tbl-count').textContent = rows.length.toLocaleString('pt-BR');
+    document.getElementById('tbl-total').textContent = state.tabelaRows.length.toLocaleString('pt-BR');
+    document.getElementById('btn-limpar-tbl').style.display = temFiltroLinha() ? 'inline-block' : 'none';
+}
+
+async function loadTabela() {
+    if (!state.onda||!state.assunto||!state.pergunta) return;
+    try {
+        const p = new URLSearchParams();
+        p.set('onda',state.onda); p.set('assunto',state.assunto); p.set('pergunta',state.pergunta);
+        if (state.categoria_coluna) p.set('categoria_coluna', state.categoria_coluna);
+        if (state.direcao) p.set('direcao',state.direcao);
+        const resp = await fetch(`/api/tabela?${p}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        state.tabelaRows = await resp.json();
+        if (abaAtiva === 'tabela') renderTabela();
+    } catch(err) { console.error('Erro tabela:', err); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// API CALLS — DADOS GLOBAIS
+// ═══════════════════════════════════════════════════════════
+function showLoading(t='Carregando...') { loadingTxt.textContent=t; loadingEl.style.display='flex'; }
+function hideLoading() { loadingEl.style.display='none'; }
+
+function setContexto(o,a,p,d) {
+    let txt = `${o} → ${a} | ${p}`;
+    if (d) txt += ` [${d==='DRIVER'?'Só Drivers':'Só Anti-drivers'}]`;
+    document.getElementById('contexto').textContent = txt;
+}
+
+function updateMetricas(data) {
+    if (!data?.tree) { ['met-total','met-drivers','met-anti','met-score'].forEach(id=>document.getElementById(id).textContent='—'); return; }
+    let total=0,drivers=0,anti=0,maxScore=-Infinity;
+    function traverse(n) {
+        if (n.leaf&&n.metrics) { total++; const dir=n.metrics.direcao; if(dir==='DRIVER')drivers++;else if(dir==='ANTI-DRIVER')anti++; const s=Math.abs(n.metrics.score_nexas||0);if(s>maxScore)maxScore=s; }
+        n.children?.forEach(traverse);
+    }
+    traverse(data.tree);
+    document.getElementById('met-total').textContent=total;
+    document.getElementById('met-drivers').textContent=drivers;
+    document.getElementById('met-anti').textContent=anti;
+    document.getElementById('met-score').textContent=maxScore===-Infinity?'—':`+${maxScore.toFixed(0)}`;
+}
+
+function updateURL() {
+    const p = new URLSearchParams();
+    if (state.onda) p.set('onda',state.onda);
+    if (state.assunto) p.set('assunto',state.assunto);
+    if (state.pergunta) p.set('pergunta',state.pergunta);
+    if (state.direcao) p.set('direcao',state.direcao);
+    window.history.replaceState({},'',`?${p}`);
+}
+
+async function loadData() {
+    if (!state.onda||!state.assunto||!state.pergunta) return;
+    showLoading('Carregando...');
+    try {
+        const p = new URLSearchParams();
+        p.set('onda',state.onda); p.set('assunto',state.assunto); p.set('pergunta',state.pergunta);
+        if (state.categoria_coluna) p.set('categoria_coluna', state.categoria_coluna);
+        if (state.direcao) p.set('direcao',state.direcao);
+        const resp = await fetch(`/api/tree?${p}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        state.treeData = data;
+        setContexto(state.onda,state.assunto,state.pergunta,state.direcao);
+        updateMetricas(data); updateURL(); updateLegendaContextual();
+        renderTree(data.tree);
+        loadTabela();
+    } catch(err) { console.error('Erro:',err); alert('Erro: '+err.message); }
+    finally { hideLoading(); }
+}
+
 async function loadOndas() {
     try {
-        const ondas = await NexasAPI.getOndas();
+        const resp = await fetch('/api/ondas'); const ondas = await resp.json();
         const sel = document.getElementById('onda-select');
         sel.innerHTML = '<option value="">Selecione uma onda</option>';
-        ondas.forEach(o => {
-            const opt = document.createElement('option');
-            opt.value = o.codigo; opt.textContent = o.codigo;
-            sel.appendChild(opt);
-        });
-        if (NexasState.onda) { sel.value = NexasState.onda; loadAssuntos(); }
+        ondas.forEach(o => { const opt=document.createElement('option');opt.value=o.codigo;opt.textContent=o.codigo;sel.appendChild(opt); });
+        if (state.onda) { sel.value=state.onda; loadAssuntos(); }
     } catch(e) { console.error(e); }
 }
 
 async function loadAssuntos() {
-    if (!NexasState.onda) return;
+    if (!state.onda) return;
     try {
-        const assuntos = await NexasAPI.getAssuntos(NexasState.onda);
+        const resp = await fetch(`/api/assuntos?onda=${state.onda}`); const assuntos = await resp.json();
         ['assunto-select','overlay-assunto'].forEach(id => {
             const sel = document.getElementById(id);
             sel.innerHTML = '<option value="">Selecione um assunto</option>';
-            assuntos.forEach(a => {
-                const opt = document.createElement('option');
-                opt.value = a; opt.textContent = a; sel.appendChild(opt);
-            });
-            sel.disabled = false;
-            if (NexasState.assunto) sel.value = NexasState.assunto;
+            assuntos.forEach(a => { const o=document.createElement('option');o.value=a;o.textContent=a;sel.appendChild(o); });
+            sel.disabled=false; if (state.assunto) sel.value=state.assunto;
         });
-        if (NexasState.assunto) loadPerguntas();
+        if (state.assunto) loadPerguntas();
     } catch(e) { console.error(e); }
 }
 
 async function loadPerguntas() {
-    if (!NexasState.onda || !NexasState.assunto) return;
+    if (!state.onda||!state.assunto) return;
     try {
-        const perguntas = await NexasAPI.getPerguntas(NexasState.onda, NexasState.assunto);
+        const resp = await fetch(`/api/perguntas?onda=${state.onda}&assunto=${encodeURIComponent(state.assunto)}`);
+        const perguntas = await resp.json();
         ['pergunta-select','overlay-pergunta'].forEach(id => {
             const sel = document.getElementById(id);
             sel.innerHTML = '<option value="">Selecione uma pergunta</option>';
-            perguntas.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p; opt.textContent = p; sel.appendChild(opt);
-            });
-            sel.disabled = false;
-            if (NexasState.pergunta) sel.value = NexasState.pergunta;
+            perguntas.forEach(p => { const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o); });
+            sel.disabled=false; if (state.pergunta) sel.value=state.pergunta;
         });
-        if (NexasState.pergunta) { loadCategoriasColuna(); triggerLoad(); }
+        if (state.pergunta) { loadCategoriasColuna(); loadData(); }
     } catch(e) { console.error(e); }
 }
 
 async function loadCategoriasColuna() {
-    if (!NexasState.isReady()) return;
+    if (!state.onda||!state.assunto||!state.pergunta) return;
     try {
-        const cats = await NexasAPI.getCategoriasColuna(NexasState.onda, NexasState.assunto, NexasState.pergunta);
+        const resp = await fetch(`/api/filtros/categorias?onda=${encodeURIComponent(state.onda)}&assunto=${encodeURIComponent(state.assunto)}&pergunta=${encodeURIComponent(state.pergunta)}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        const cats = data.categorias || data;
         const sel = document.getElementById('categoria-coluna-select');
         sel.innerHTML = '<option value="">Todas as categorias</option>';
-        cats.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c; opt.textContent = c; sel.appendChild(opt);
-        });
+        cats.forEach(c => { const o=document.createElement('option');o.value=c;o.textContent=c;sel.appendChild(o); });
         sel.disabled = false;
-        if (NexasState.categoria_coluna) sel.value = NexasState.categoria_coluna;
+        if (state.categoria_coluna) sel.value = state.categoria_coluna;
     } catch(e) { console.error(e); }
 }
 
-function triggerLoad() {
-    if (!NexasState.isReady()) return;
-    NexasState.pushURL();
-    if (activeTab === 'dendrograma') loadData();
-    else NexasState._notify('pergunta', NexasState.pergunta);
+// ═══════════════════════════════════════════════════════════
+// CONTROLES: ZOOM, BUSCA, EXPORT, RESIZE
+// ═══════════════════════════════════════════════════════════
+function zoomIn()  { if(!svg)return; svg.transition().duration(300).call(d3.zoom().transform,d3.zoomIdentity.translate(100,svg.node().clientHeight/2).scale(state.zoomLevel*1.2)); }
+function zoomOut() { if(!svg)return; svg.transition().duration(300).call(d3.zoom().transform,d3.zoomIdentity.translate(100,svg.node().clientHeight/2).scale(state.zoomLevel/1.2)); }
+function zoomFit() { if(!svg)return; svg.transition().duration(500).call(d3.zoom().transform,d3.zoomIdentity.translate(100,svg.node().clientHeight/2).scale(1)); }
+
+function searchNodes(q) {
+    if (!q||!root) { g?.selectAll('.node').classed('highlighted',false).classed('dimmed',false); return; }
+    const ql=q.toLowerCase(), nodes=root.descendants();
+    const matches=nodes.filter(d=>d.data.name?.toLowerCase().includes(ql));
+    g.selectAll('.node').classed('dimmed',true);
+    matches.forEach(m=>{let c=m;while(c){if(c._children){c.children=c._children;c._children=null;}c=c.parent;}});
+    update(root);
+    g.selectAll('.node').each(function(d){const isM=matches.includes(d);d3.select(this).classed('highlighted',isM).classed('dimmed',!isM);});
 }
 
-async function loadData() {
-    if (!NexasState.isReady()) return;
-    showLoading('Carregando árvore...');
-    try {
-        const data = await NexasAPI.getTree(NexasState.toParams());
-        setContexto(NexasState.onda, NexasState.assunto, NexasState.pergunta, NexasState.direcao);
-        updateMetricas(data);
-        updateLegendaContextual();
-        renderTree(data.tree);
-    } catch(e) {
-        console.error(e);
-        alert('Erro ao carregar dados: ' + e.message);
-    } finally { hideLoading(); }
+function exportPNG() {
+    showLoading('Gerando PNG...');
+    setTimeout(() => {
+        try {
+            const svgEl=svg.node(),bbox=g.node().getBBox(),pad=40;
+            const canvas=document.createElement('canvas');canvas.width=bbox.width+pad*2;canvas.height=bbox.height+pad*2;
+            const ctx=canvas.getContext('2d');
+            ctx.fillStyle=document.documentElement.getAttribute('data-theme')==='dark'?'#0f172a':'#ffffff';
+            ctx.fillRect(0,0,canvas.width,canvas.height);
+            const svgBlob=new Blob([new XMLSerializer().serializeToString(svgEl)],{type:'image/svg+xml;charset=utf-8'});
+            const url=URL.createObjectURL(svgBlob);
+            const img=new Image();
+            img.onload=()=>{ctx.drawImage(img,pad-bbox.x,pad-bbox.y);canvas.toBlob(blob=>{const link=document.createElement('a');link.download=`nexas-${state.onda}-${Date.now()}.png`;link.href=URL.createObjectURL(blob);link.click();URL.revokeObjectURL(url);hideLoading();});};
+            img.src=url;
+        } catch(e) { alert('Erro ao exportar'); hideLoading(); }
+    }, 100);
 }
 
-// ── Event listeners dos filtros ──
-function initFilters() {
-    document.getElementById('onda-select').addEventListener('change', e => {
-        NexasState.set('onda', e.target.value);
-        NexasState.set('assunto', null);
-        NexasState.set('pergunta', null);
-        NexasState.set('categoria_coluna', null);
-        document.getElementById('assunto-select').disabled = true;
-        document.getElementById('pergunta-select').disabled = true;
-        document.getElementById('categoria-coluna-select').innerHTML = '<option value="">Todas as categorias</option>';
-        document.getElementById('categoria-coluna-select').disabled = true;
-        if (NexasState.onda) loadAssuntos();
-    });
-
-    document.getElementById('assunto-select').addEventListener('change', e => {
-        NexasState.set('assunto', e.target.value);
-        NexasState.set('pergunta', null);
-        NexasState.set('categoria_coluna', null);
-        document.getElementById('pergunta-select').disabled = true;
-        document.getElementById('categoria-coluna-select').innerHTML = '<option value="">Todas as categorias</option>';
-        document.getElementById('categoria-coluna-select').disabled = true;
-        if (NexasState.assunto) loadPerguntas();
-    });
-
-    document.getElementById('pergunta-select').addEventListener('change', e => {
-        NexasState.set('pergunta', e.target.value);
-        NexasState.set('categoria_coluna', null);
-        document.getElementById('categoria-coluna-select').innerHTML = '<option value="">Todas as categorias</option>';
-        document.getElementById('categoria-coluna-select').disabled = true;
-        if (NexasState.pergunta) { loadCategoriasColuna(); triggerLoad(); }
-    });
-
-    document.getElementById('categoria-coluna-select').addEventListener('change', e => {
-        NexasState.set('categoria_coluna', e.target.value || null);
-        updateLegendaContextual();
-        triggerLoad();
-    });
-
-    document.getElementById('direcao-select').addEventListener('change', e => {
-        NexasState.set('direcao', e.target.value || null);
-        triggerLoad();
-    });
-
-    document.getElementById('overlay-assunto').addEventListener('change', e => {
-        document.getElementById('assunto-select').value = e.target.value;
-        document.getElementById('assunto-select').dispatchEvent(new Event('change'));
-    });
-    document.getElementById('overlay-pergunta').addEventListener('change', e => {
-        document.getElementById('pergunta-select').value = e.target.value;
-        document.getElementById('pergunta-select').dispatchEvent(new Event('change'));
-    });
-    document.getElementById('overlay-direcao').addEventListener('change', e => {
-        document.getElementById('direcao-select').value = e.target.value;
-        document.getElementById('direcao-select').dispatchEvent(new Event('change'));
-    });
+function resizeDendrogram() {
+    if (!svg||!root) return;
+    const container=document.getElementById('svg-container');
+    const w=container.clientWidth,h=container.clientHeight;
+    d3.select('#svg-container svg').attr('width',w).attr('height',h);
+    root.x0=h/2; root.y0=0;
+    svg.transition().duration(300).call(d3.zoom().transform,d3.zoomIdentity.translate(100,h/2).scale(state.zoomLevel));
+    update(root);
 }
 
-// ── Tema ──
-function initTheme() {
-    const btn = document.getElementById('theme-toggle');
-    const icon = document.getElementById('toggle-icon');
-    let isDark = true;
-    document.documentElement.setAttribute('data-theme', 'dark');
-    btn.addEventListener('click', () => {
-        isDark = !isDark;
-        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-        icon.textContent = isDark ? '☀️' : '🌙';
-        if (typeof updateDendrogramaTheme === 'function') updateDendrogramaTheme();
-    });
+// ═══════════════════════════════════════════════════════════
+// MISC UI
+// ═══════════════════════════════════════════════════════════
+function toggleSection(n) { document.getElementById(`section-${n}`)?.classList.toggle('section-collapsed'); }
+function toggleCompactMode() {
+    state.isCompactMode=!state.isCompactMode;
+    document.body.classList.toggle('minimized',state.isCompactMode);
+    document.getElementById('compact-icon').textContent=state.isCompactMode?'▼':'▲';
+    document.getElementById('compact-text').textContent=state.isCompactMode?'Expandir':'Compacto';
+    setTimeout(resizeDendrogram,300);
 }
+function openFiltersOverlay() {
+    document.getElementById('filters-overlay').classList.add('active');
+    document.getElementById('overlay-contexto').textContent=document.getElementById('contexto').textContent;
+    document.getElementById('overlay-total').textContent=document.getElementById('met-total').textContent;
+    document.getElementById('overlay-drivers').textContent=document.getElementById('met-drivers').textContent;
+    document.getElementById('overlay-anti').textContent=document.getElementById('met-anti').textContent;
+}
+function closeFiltersOverlay() { document.getElementById('filters-overlay').classList.remove('active'); }
 
-// ── Drag nas legendas ──
-function makeDraggable(el, storageKey) {
-    const saved = localStorage.getItem(storageKey);
+function makeDraggable(el, key) {
+    const saved = localStorage.getItem(key);
     if (saved) {
         try {
-            const pos = JSON.parse(saved);
-            const left = parseFloat(pos.left);
-            const top  = parseFloat(pos.top);
-            const maxLeft = window.innerWidth  - el.offsetWidth  - 10;
-            const maxTop  = window.innerHeight - el.offsetHeight - 10;
-            el.style.left   = Math.max(10, Math.min(left, maxLeft)) + 'px';
-            el.style.top    = Math.max(10, Math.min(top,  maxTop))  + 'px';
-            el.style.bottom = 'auto';
-            el.style.right  = 'auto';
-        } catch(e) { localStorage.removeItem(storageKey); }
+            const p=JSON.parse(saved);
+            el.style.left=Math.max(10,Math.min(parseFloat(p.left),window.innerWidth-el.offsetWidth-10))+'px';
+            el.style.top=Math.max(10,Math.min(parseFloat(p.top),window.innerHeight-el.offsetHeight-10))+'px';
+            el.style.bottom='auto'; el.style.right='auto';
+        } catch(e) { localStorage.removeItem(key); }
     }
-    let dragging = false, sx, sy, sl, st;
-    el.addEventListener('mousedown', e => {
-        dragging = true;
-        const r = el.getBoundingClientRect();
-        sx = e.clientX; sy = e.clientY; sl = r.left; st = r.top;
-        el.style.left = sl + 'px'; el.style.top = st + 'px';
-        el.style.bottom = 'auto'; el.style.right = 'auto';
-        el.style.cursor = 'grabbing';
-        e.preventDefault();
-    });
-    document.addEventListener('mousemove', e => {
-        if (!dragging) return;
-        el.style.left = (sl + e.clientX - sx) + 'px';
-        el.style.top  = (st + e.clientY - sy) + 'px';
-    });
-    document.addEventListener('mouseup', () => {
-        if (!dragging) return;
-        dragging = false;
-        el.style.cursor = 'grab';
-        localStorage.setItem(storageKey, JSON.stringify({ left: el.style.left, top: el.style.top }));
-    });
+    let drag=false,sx,sy,sl,st;
+    el.addEventListener('mousedown',e=>{drag=true;const r=el.getBoundingClientRect();sx=e.clientX;sy=e.clientY;sl=r.left;st=r.top;el.style.left=sl+'px';el.style.top=st+'px';el.style.bottom='auto';el.style.right='auto';el.style.cursor='grabbing';e.preventDefault();});
+    document.addEventListener('mousemove',e=>{if(!drag)return;el.style.left=(sl+e.clientX-sx)+'px';el.style.top=(st+e.clientY-sy)+'px';});
+    document.addEventListener('mouseup',()=>{if(!drag)return;drag=false;el.style.cursor='grab';localStorage.setItem(key,JSON.stringify({left:el.style.left,top:el.style.top}));});
 }
 
-// ── Init ──
+async function downloadTabela(fmt) {
+    if (!state.onda||!state.assunto||!state.pergunta) return;
+    const p=new URLSearchParams();
+    p.set('onda',state.onda);p.set('assunto',state.assunto);p.set('pergunta',state.pergunta);
+    if (state.categoria_coluna) p.set('categoria_coluna',state.categoria_coluna);
+    if (state.direcao) p.set('direcao',state.direcao);
+    window.location.href=`/api/tabela/download/${fmt}?${p}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
 function init() {
-    initTheme();
-    initFilters();
-    NexasState.fromURL();
+    // Tema
+    const btn=document.getElementById('theme-toggle'),icon=document.getElementById('toggle-icon');
+    let isDark=true; document.documentElement.setAttribute('data-theme','dark'); icon.textContent='☀️';
+    btn.addEventListener('click',()=>{isDark=!isDark;document.documentElement.setAttribute('data-theme',isDark?'dark':'light');icon.textContent=isDark?'☀️':'🌙';if(svg){d3.selectAll('.node-text-line').style('fill',getTextColor());d3.selectAll('.node circle').style('stroke',getNodeStroke());}});
+
+    // URL restore
+    const params=new URLSearchParams(window.location.search);
+    if(params.get('onda'))state.onda=params.get('onda');
+    if(params.get('assunto'))state.assunto=params.get('assunto');
+    if(params.get('pergunta'))state.pergunta=params.get('pergunta');
+    if(params.get('direcao'))state.direcao=params.get('direcao');
+
+    // Inicia tabela
+    iniciarTabela();
+
+    // Drag legendas
+    makeDraggable(document.getElementById('legend-cores'),    'nexas_legend_cores_pos');
+    makeDraggable(document.getElementById('legend-contexto'), 'nexas_legend_ctx_pos');
+
     loadOndas();
 
-    makeDraggable(document.getElementById('legend-expanded'),    'nexas_legend_pos');
-    makeDraggable(document.getElementById('legend-contextual'),  'nexas_ctx_legend_pos');
-
+    // Filtros globais
     document.getElementById('btn-toggle-compact').addEventListener('click', toggleCompactMode);
     document.getElementById('btn-filters').addEventListener('click', openFiltersOverlay);
-    document.getElementById('filters-overlay').addEventListener('click', e => {
-        if (e.target.id === 'filters-overlay') closeFiltersOverlay();
-    });
+    document.getElementById('filters-overlay').addEventListener('click', e => { if(e.target.id==='filters-overlay')closeFiltersOverlay(); });
 
-    document.addEventListener('keydown', e => {
-        if ((e.key==='h'||e.key==='H') && !e.target.matches('input,select,textarea')) toggleCompactMode();
-        if (e.key === 'Escape') closeFiltersOverlay();
+    document.getElementById('onda-select').addEventListener('change', e => {
+        state.onda=e.target.value; state.assunto=null; state.pergunta=null;
+        state.categoria_coluna=null; state.tabelaRows=null; clearFiltrosLinha();
+        document.getElementById('assunto-select').disabled=true;
+        document.getElementById('pergunta-select').disabled=true;
+        const catSel=document.getElementById('categoria-coluna-select');
+        catSel.innerHTML='<option value="">Todas as categorias</option>'; catSel.disabled=true;
+        if(state.onda)loadAssuntos();
     });
-
-    window.addEventListener('resize', () => {
-        clearTimeout(window.resizeTimer);
-        window.resizeTimer = setTimeout(resizeDendrogram, 250);
+    document.getElementById('assunto-select').addEventListener('change', e => {
+        state.assunto=e.target.value; state.pergunta=null;
+        state.categoria_coluna=null; state.tabelaRows=null; clearFiltrosLinha();
+        document.getElementById('pergunta-select').disabled=true;
+        const catSel=document.getElementById('categoria-coluna-select');
+        catSel.innerHTML='<option value="">Todas as categorias</option>'; catSel.disabled=true;
+        if(state.assunto)loadPerguntas();
     });
+    document.getElementById('pergunta-select').addEventListener('change', e => {
+        state.pergunta=e.target.value; state.categoria_coluna=null;
+        state.tabelaRows=null; clearFiltrosLinha();
+        const catSel=document.getElementById('categoria-coluna-select');
+        catSel.innerHTML='<option value="">Todas as categorias</option>'; catSel.disabled=true;
+        if(state.pergunta){loadCategoriasColuna();loadData();}
+    });
+    document.getElementById('categoria-coluna-select').addEventListener('change', e => {
+        state.categoria_coluna=e.target.value||null;
+        state.tabelaRows=null; clearFiltrosLinha();
+        updateLegendaContextual();
+        if(state.pergunta)loadData();
+    });
+    document.getElementById('direcao-select').addEventListener('change', e => {
+        state.direcao=e.target.value||null; state.tabelaRows=null; clearFiltrosLinha();
+        if(state.pergunta)loadData();
+    });
+    document.getElementById('overlay-assunto').addEventListener('change', e => { document.getElementById('assunto-select').value=e.target.value; document.getElementById('assunto-select').dispatchEvent(new Event('change')); });
+    document.getElementById('overlay-pergunta').addEventListener('change', e => { document.getElementById('pergunta-select').value=e.target.value; document.getElementById('pergunta-select').dispatchEvent(new Event('change')); });
+    document.getElementById('overlay-direcao').addEventListener('change', e => { document.getElementById('direcao-select').value=e.target.value; document.getElementById('direcao-select').dispatchEvent(new Event('change')); });
 
-    // Carrega aba inicial (dendrograma)
+    // Toolbar dendrograma
+    document.getElementById('btn-zoom-in').addEventListener('click',zoomIn);
+    document.getElementById('btn-zoom-out').addEventListener('click',zoomOut);
+    document.getElementById('btn-zoom-fit').addEventListener('click',zoomFit);
+    document.getElementById('slider-y').addEventListener('input',e=>{state.nodeYSpacing=+e.target.value;document.getElementById('val-y').textContent=e.target.value;if(root){treemap.nodeSize([state.nodeYSpacing,state.nodeXSpacing]);update(root);}});
+    document.getElementById('slider-x').addEventListener('input',e=>{state.nodeXSpacing=+e.target.value;document.getElementById('val-x').textContent=e.target.value;if(root){treemap.nodeSize([state.nodeYSpacing,state.nodeXSpacing]);update(root);}});
+    document.getElementById('search-box').addEventListener('input',e=>searchNodes(e.target.value));
+    document.getElementById('btn-clear-search').addEventListener('click',()=>{document.getElementById('search-box').value='';searchNodes('');});
+    document.getElementById('btn-expand').addEventListener('click',()=>{if(root){root.children?.forEach(expand);update(root);}});
+    document.getElementById('btn-collapse').addEventListener('click',()=>{if(root){root.children?.forEach(collapse);clearFiltrosLinha();update(root);}});
+    document.getElementById('agregacao-select').addEventListener('change',e=>{state.agregacao=e.target.value;if(root)update(root);});
+    document.getElementById('btn-export').addEventListener('click',exportPNG);
+
+    // Toolbar tabela
+    document.getElementById('btn-limpar-tbl').addEventListener('click',()=>clearFiltrosLinha());
+    document.getElementById('btn-dl-csv').addEventListener('click',()=>downloadTabela('csv'));
+    document.getElementById('btn-dl-xlsx').addEventListener('click',()=>downloadTabela('xlsx'));
+
+    // Hotkeys
+    document.addEventListener('keydown',e=>{
+        if((e.key==='h'||e.key==='H')&&!e.target.matches('input,select,textarea'))toggleCompactMode();
+        if(e.key==='Escape')closeFiltersOverlay();
+    });
+    window.addEventListener('resize',()=>{clearTimeout(window.resizeTimer);window.resizeTimer=setTimeout(resizeDendrogram,250);});
+
     switchTab('dendrograma');
 }
 

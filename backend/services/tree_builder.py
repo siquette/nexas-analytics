@@ -1,29 +1,18 @@
 """
 services/tree_builder.py — Transforma a tabela flat em árvore hierárquica.
 
-Esse é o service mais importante do sistema. Ele pega o resultado de uma
-query SQL (tabela com linhas e colunas) e monta a árvore aninhada que
-o D3 consome para desenhar o dendrograma e o sunburst.
-
 A hierarquia padrão (sem filtro de categoria_coluna) é:
     Nível 0 (root):  ASSUNTO_COLUNA | PERGUNTA_COLUNA
     Nível 1:         CATEGORIA_COLUNA
     Nível 2:         ASSUNTO_LINHA
     Nível 3:         PERGUNTA_LINHA
-    Nível 4 (leaf):  CATEGORIA_LINHA  ← com métricas individuais
+    Nível 4 (leaf):  CATEGORIA_LINHA
 
 Quando categoria_coluna é informada, a árvore começa no nível 2:
-    Nível 0 (root):  CATEGORIA_COLUNA  ← passa a ser o root
+    Nível 0 (root):  CATEGORIA_COLUNA
     Nível 1:         ASSUNTO_LINHA
     Nível 2:         PERGUNTA_LINHA
     Nível 3 (leaf):  CATEGORIA_LINHA
-
-Cada nó interno recebe métricas AGREGADAS (média dos filhos).
-
-MODIFICAÇÕES v2.1:
-- Adicionado parâmetro categoria_coluna em build_tree()
-- Quando categoria_coluna informada: root = categoria, árvore com 3 níveis
-- Mantidos cálculos de composição Driver/Anti-driver, min/max/median/std_dev
 """
 
 import logging
@@ -47,29 +36,10 @@ def build_tree(
     agregacao: str | None = None,
     categoria_coluna: str | None = None,
 ) -> TreeResponse:
-    """
-    Constrói a árvore hierárquica completa para um cruzamento.
-
-    Args:
-        db: Sessão do banco
-        onda_codigo: Código da onda (ex: "2025-Q1")
-        assunto_coluna: Assunto do cross 1 (ex: "AVALIAÇÃO DA ÁGUA")
-        pergunta_coluna: Pergunta do cross 1 (ex: "IQPA")
-        direcao: Filtro opcional — "DRIVER", "ANTI-DRIVER" ou None (todos)
-        agregacao: Método de agregação — weighted_mean, mean, median, max
-        categoria_coluna: Filtro opcional — quando informado, filtra nível 1
-                          e usa a categoria como root da árvore (3 níveis)
-
-    Returns:
-        TreeResponse com a árvore completa pronta pro D3
-    """
-
-    # --- 1. Buscar a onda ---
     onda = db.query(Onda).filter_by(codigo=onda_codigo).first()
     if not onda:
         raise ValueError(f"Onda '{onda_codigo}' não encontrada.")
 
-    # --- 2. Consultar os dados filtrados ---
     query = db.query(LiftResultado).filter(
         LiftResultado.onda_id == onda.id,
         LiftResultado.assunto_coluna == assunto_coluna,
@@ -93,13 +63,10 @@ def build_tree(
 
     logger.info(f"Construindo árvore: {len(rows)} linhas | categoria_coluna={categoria_coluna}")
 
-    # --- 3. Delegar para o builder correto ---
     if categoria_coluna:
-        # Árvore de 3 níveis com a categoria como root
         tree_node = _build_from_categoria(rows, categoria_coluna)
         root_name = categoria_coluna
     else:
-        # Árvore de 4 níveis com root padrão
         tree_node = _build_full_tree(rows, assunto_coluna, pergunta_coluna)
         root_name = f"{assunto_coluna} | {pergunta_coluna}"
 
@@ -115,17 +82,8 @@ def build_tree(
     )
 
 
-def _build_full_tree(
-    rows: list,
-    assunto_coluna: str,
-    pergunta_coluna: str,
-) -> TreeNode:
-    """
-    Monta a árvore completa de 4 níveis (comportamento padrão).
-
-    Hierarquia:
-        root → CATEGORIA_COLUNA → ASSUNTO_LINHA → PERGUNTA_LINHA → CATEGORIA_LINHA
-    """
+def _build_full_tree(rows: list, assunto_coluna: str, pergunta_coluna: str) -> TreeNode:
+    """Árvore completa de 4 níveis — comportamento padrão."""
     hierarchy = {}
 
     for row in rows:
@@ -172,18 +130,8 @@ def _build_full_tree(
     )
 
 
-def _build_from_categoria(
-    rows: list,
-    categoria_coluna: str,
-) -> TreeNode:
-    """
-    Monta a árvore de 3 níveis com CATEGORIA_COLUNA como root.
-
-    Hierarquia:
-        CATEGORIA_COLUNA (root) → ASSUNTO_LINHA → PERGUNTA_LINHA → CATEGORIA_LINHA
-
-    Todos os rows já foram filtrados por categoria_coluna antes de chegar aqui.
-    """
+def _build_from_categoria(rows: list, categoria_coluna: str) -> TreeNode:
+    """Árvore de 3 níveis com CATEGORIA_COLUNA como root."""
     hierarchy = {}
 
     for row in rows:
@@ -209,10 +157,7 @@ def _build_from_categoria(
 
 
 def _build_nivel1_from_assuntos(assuntos: dict) -> list[TreeNode]:
-    """
-    Constrói nós de ASSUNTO_LINHA e seus filhos (PERGUNTA_LINHA → CATEGORIA_LINHA).
-    Reutilizado tanto na árvore completa quanto na árvore filtrada por categoria.
-    """
+    """Constrói ASSUNTO_LINHA → PERGUNTA_LINHA → CATEGORIA_LINHA."""
     nivel1_children = []
 
     for assunto_linha, perguntas in assuntos.items():
@@ -284,10 +229,6 @@ def build_ramificacao(
     categoria_coluna: str,
     direcao: str | None = None,
 ) -> TreeNode:
-    """
-    Constrói apenas a subárvore de uma CATEGORIA_COLUNA específica.
-    Usado quando o analista clica num arco do sunburst.
-    """
     onda = db.query(Onda).filter_by(codigo=onda_codigo).first()
     if not onda:
         raise ValueError(f"Onda '{onda_codigo}' não encontrada.")
@@ -305,164 +246,95 @@ def build_ramificacao(
     rows = query.all()
 
     if not rows:
-        raise ValueError(
-            f"Nenhum resultado para categoria_coluna='{categoria_coluna}'"
-        )
+        raise ValueError(f"Nenhum resultado para categoria_coluna='{categoria_coluna}'")
 
     return _build_from_categoria(rows, categoria_coluna)
 
 
-# ============================================
-# Funções auxiliares de agregação
-# ============================================
+# ── Agregação ──
 
 def _calculate_composition(leaf_nodes: list[TreeNode]) -> dict | None:
-    """
-    Calcula composição de drivers vs anti-drivers a partir de leafs.
-    """
-    drivers = []
-    anti_drivers = []
-
+    drivers, anti_drivers = [], []
     for node in leaf_nodes:
         if isinstance(node.metrics, LeafMetrics):
             if node.metrics.direcao == 'DRIVER':
                 drivers.append(node.metrics.score_nexas)
             elif node.metrics.direcao == 'ANTI-DRIVER':
                 anti_drivers.append(node.metrics.score_nexas)
-
     total = len(drivers) + len(anti_drivers)
     if total == 0:
         return None
-
     result = {}
-
     if drivers:
-        result['drivers'] = {
-            'count': len(drivers),
-            'percentage': round((len(drivers) / total) * 100, 1),
-            'avg': round(sum(drivers) / len(drivers), 1),
-            'max': round(max(drivers), 1),
-        }
-
+        result['drivers'] = {'count': len(drivers), 'percentage': round(len(drivers)/total*100,1), 'avg': round(sum(drivers)/len(drivers),1), 'max': round(max(drivers),1)}
     if anti_drivers:
-        result['anti_drivers'] = {
-            'count': len(anti_drivers),
-            'percentage': round((len(anti_drivers) / total) * 100, 1),
-            'avg': round(sum(anti_drivers) / len(anti_drivers), 1),
-            'min': round(min(anti_drivers), 1),
-        }
-
+        result['anti_drivers'] = {'count': len(anti_drivers), 'percentage': round(len(anti_drivers)/total*100,1), 'avg': round(sum(anti_drivers)/len(anti_drivers),1), 'min': round(min(anti_drivers),1)}
     return result if result else None
 
 
 def _aggregate_metrics(leaf_nodes: list[TreeNode]) -> NodeMetrics:
-    """Calcula métricas agregadas a partir de nós LEAF."""
-    scores = []
-    relevancias = []
-
+    scores, relevancias = [], []
     for node in leaf_nodes:
         if isinstance(node.metrics, LeafMetrics):
             scores.append(node.metrics.score_nexas)
             relevancias.append(node.metrics.relevancia)
-
-    avg_score = sum(scores) / len(scores) if scores else 0
+    avg_score = sum(scores)/len(scores) if scores else 0
     min_score = min(scores) if scores else 0
     max_score = max(scores) if scores else 0
-
     sorted_scores = sorted(scores) if scores else [0]
     n = len(sorted_scores)
-    median_score = (
-        sorted_scores[n // 2]
-        if n % 2
-        else (sorted_scores[n // 2 - 1] + sorted_scores[n // 2]) / 2
-    )
-
-    if len(scores) > 1:
-        variance = sum((x - avg_score) ** 2 for x in scores) / len(scores)
-        std_dev = variance ** 0.5
-    else:
-        std_dev = 0
-
-    composition = _calculate_composition(leaf_nodes)
-
+    median_score = sorted_scores[n//2] if n%2 else (sorted_scores[n//2-1]+sorted_scores[n//2])/2
+    std_dev = (sum((x-avg_score)**2 for x in scores)/len(scores))**0.5 if len(scores) > 1 else 0
     return NodeMetrics(
-        avg_score=avg_score,
-        min_score=min_score,
-        max_score=max_score,
-        median_score=median_score,
-        std_dev=std_dev,
-        avg_relevancia=sum(relevancias) / len(relevancias) if relevancias else 0,
-        count=len(scores),
-        composition=composition,
+        avg_score=avg_score, min_score=min_score, max_score=max_score,
+        median_score=median_score, std_dev=std_dev,
+        avg_relevancia=sum(relevancias)/len(relevancias) if relevancias else 0,
+        count=len(scores), composition=_calculate_composition(leaf_nodes),
     )
 
 
 def _aggregate_metrics_from_nodes(child_nodes: list[TreeNode]) -> NodeMetrics:
-    """Calcula métricas agregadas a partir de nós INTERNOS."""
-    scores = []
-    relevancias = []
-    total_count = 0
-    all_min_scores = []
-    all_max_scores = []
-    all_leaf_nodes = []
+    scores, relevancias, total_count = [], [], 0
+    all_min, all_max, all_leaves = [], [], []
 
     def collect_leaves(node: TreeNode):
         if node.leaf:
-            all_leaf_nodes.append(node)
+            all_leaves.append(node)
         elif node.children:
-            for child in node.children:
-                collect_leaves(child)
+            for c in node.children:
+                collect_leaves(c)
 
     for node in child_nodes:
         collect_leaves(node)
-
         if isinstance(node.metrics, NodeMetrics):
             scores.append(node.metrics.avg_score)
             relevancias.append(node.metrics.avg_relevancia)
             total_count += node.metrics.count
-            if node.metrics.min_score is not None:
-                all_min_scores.append(node.metrics.min_score)
-            if node.metrics.max_score is not None:
-                all_max_scores.append(node.metrics.max_score)
+            if node.metrics.min_score is not None: all_min.append(node.metrics.min_score)
+            if node.metrics.max_score is not None: all_max.append(node.metrics.max_score)
         elif isinstance(node.metrics, LeafMetrics):
             scores.append(node.metrics.score_nexas)
             relevancias.append(node.metrics.relevancia)
             total_count += 1
-            all_min_scores.append(node.metrics.score_nexas)
-            all_max_scores.append(node.metrics.score_nexas)
+            all_min.append(node.metrics.score_nexas)
+            all_max.append(node.metrics.score_nexas)
 
-    avg_score = sum(scores) / len(scores) if scores else 0
-    min_score = min(all_min_scores) if all_min_scores else 0
-    max_score = max(all_max_scores) if all_max_scores else 0
-
+    avg_score = sum(scores)/len(scores) if scores else 0
     sorted_scores = sorted(scores) if scores else [0]
     n = len(sorted_scores)
-    median_score = (
-        sorted_scores[n // 2]
-        if n % 2
-        else (sorted_scores[n // 2 - 1] + sorted_scores[n // 2]) / 2
-    )
-
-    if len(scores) > 1:
-        variance = sum((x - avg_score) ** 2 for x in scores) / len(scores)
-        std_dev = variance ** 0.5
-    else:
-        std_dev = 0
-
-    composition = _calculate_composition(all_leaf_nodes) if all_leaf_nodes else None
+    median_score = sorted_scores[n//2] if n%2 else (sorted_scores[n//2-1]+sorted_scores[n//2])/2
+    std_dev = (sum((x-avg_score)**2 for x in scores)/len(scores))**0.5 if len(scores) > 1 else 0
 
     return NodeMetrics(
         avg_score=avg_score,
-        min_score=min_score,
-        max_score=max_score,
-        median_score=median_score,
-        std_dev=std_dev,
-        avg_relevancia=sum(relevancias) / len(relevancias) if relevancias else 0,
+        min_score=min(all_min) if all_min else 0,
+        max_score=max(all_max) if all_max else 0,
+        median_score=median_score, std_dev=std_dev,
+        avg_relevancia=sum(relevancias)/len(relevancias) if relevancias else 0,
         count=total_count,
-        composition=composition,
+        composition=_calculate_composition(all_leaves) if all_leaves else None,
     )
 
 
 def _sum_values(nodes: list[TreeNode]) -> float:
-    """Soma os values dos filhos (usado para tamanho do arco no sunburst)."""
     return sum(n.value for n in nodes if n.value)
